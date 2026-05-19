@@ -1,0 +1,14 @@
+.mxspub-auth-code {
+  user-select: all;
+  font-size: 1.4em;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+
+.mxspub-modal-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 16px;
+}
+

@@ -1,0 +1,9 @@
+{
+  "id": "mxspub",
+  "name": "Mxspub",
+  "version": "0.1.0",
+  "minAppVersion": "1.11.4",
+  "description": "Publish Obsidian Markdown files to mx-space.",
+  "author": "Innei",
+  "isDesktopOnly": false
+}
