@@ -18,6 +18,7 @@ for API calls and credentials.
 - Check whether the selected API key can authenticate before publishing.
 - Upload local Obsidian image embeds to mx-space during publish and reuse
   previously uploaded images by content hash.
+- Open a management view with image cache and published content tabs.
 
 ## Frontmatter
 
@@ -66,6 +67,13 @@ embeds such as:
 External `http` and `https` images are left unchanged. Uploaded images are
 cached by SHA-256 content hash so the same image is not uploaded again from the
 same vault.
+
+## Management
+
+Use `Mxspub: Open management` to inspect plugin state:
+
+- `Images`: cached uploaded images, source path, size, last-used time, and URL.
+- `Published`: Markdown files with `mxspace.id`, grouped from vault metadata.
 
 ## Development
 

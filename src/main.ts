@@ -2,6 +2,10 @@ import { MarkdownView, Notice, Plugin } from 'obsidian'
 
 import { AuthService } from './auth'
 import { probeEndpoint } from './api'
+import {
+  MXSPUB_MANAGEMENT_VIEW,
+  MxspubManagementView,
+} from './management'
 import { Publisher } from './publisher'
 import {
   MxSpacePublisherSettingTab,
@@ -28,9 +32,16 @@ export default class MxSpacePublisherPlugin extends Plugin {
       () => this.saveSettings(),
     )
 
+    this.registerView(
+      MXSPUB_MANAGEMENT_VIEW,
+      (leaf) => new MxspubManagementView(leaf, this.settings),
+    )
     this.addSettingTab(new MxSpacePublisherSettingTab(this.app, this))
     this.addRibbonIcon('send', 'Publish with Mxspub', () => {
       void this.publisher.publishCurrentFile()
+    })
+    this.addRibbonIcon('panel-right', 'Open Mxspub', () => {
+      void this.openManagementView()
     })
 
     this.addCommand({
@@ -46,6 +57,14 @@ export default class MxSpacePublisherPlugin extends Plugin {
       name: 'Unpublish',
       callback: () => {
         void this.publisher.unpublishCurrentFile()
+      },
+    })
+
+    this.addCommand({
+      id: 'open-management',
+      name: 'Open management',
+      callback: () => {
+        void this.openManagementView()
       },
     })
 
@@ -108,6 +127,18 @@ export default class MxSpacePublisherPlugin extends Plugin {
       const message = error instanceof Error ? error.message : String(error)
       new Notice(message, 8000)
     }
+  }
+
+  async openManagementView(): Promise<void> {
+    const existing = this.app.workspace.getLeavesOfType(MXSPUB_MANAGEMENT_VIEW)
+    if (existing.length > 0) {
+      await this.app.workspace.revealLeaf(existing[0])
+      return
+    }
+
+    const leaf = this.app.workspace.getLeaf('tab')
+    await leaf.setViewState({ active: true, type: MXSPUB_MANAGEMENT_VIEW })
+    await this.app.workspace.revealLeaf(leaf)
   }
 
   private registerMarkdownPublishActions(): void {

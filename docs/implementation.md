@@ -17,6 +17,8 @@ files, stdout/stderr output model, or error codes.
 - The companion command is `MX Space: Unpublish current file`.
 - `MX Space: Check API key` verifies the selected SecretStorage API key against
   the configured mx-space endpoint.
+- `Mxspub: Open management` opens a tabbed management view for cached images
+  and published content metadata.
 - The plugin determines the target content type from `mxspace.type` in the
   current file's frontmatter.
 - If `mxspace.type` is missing, the plugin opens a type picker and writes the
@@ -185,6 +187,8 @@ Content payloads:
 - `src/frontmatter.ts`: active file extraction and `mxspace` updates.
 - `src/images.ts`: Obsidian image link resolution, upload, payload rewriting,
   and content-hash cache.
+- `src/management.ts`: tabbed management view for image cache and published
+  content metadata.
 - `src/publisher.ts`: publish/update/unpublish orchestration.
 - `src/modals.ts`: type picker and confirmation modal.
 - `src/types.ts`: shared internal types.
