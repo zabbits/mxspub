@@ -11,6 +11,7 @@ import {
   withMxspaceType,
 } from './frontmatter'
 import { confirmAction, pickContentType } from './modals'
+import { ImageUploadService } from './images'
 import { buildPayload, resolveSlug } from './payload'
 import { RelationService } from './relations'
 import type {
@@ -38,6 +39,7 @@ export class Publisher {
     private settings: MxSpacePublisherSettings,
     private auth: AuthService,
     private ensureEndpoint: () => Promise<void>,
+    private saveSettings: () => Promise<void>,
   ) {}
 
   async publishCurrentFile(): Promise<void> {
@@ -59,6 +61,13 @@ export class Publisher {
       }
 
       const api = this.auth.createApiClient()
+      const imageUploadService = new ImageUploadService(
+        this.app,
+        this.settings,
+        api,
+        this.saveSettings,
+      )
+      context = await imageUploadService.prepareContext(context, file)
       const relationService = new RelationService(api, this.settings)
       if (type === 'post') {
         const typedContext = withMxspaceType(context, 'post')

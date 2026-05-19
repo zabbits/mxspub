@@ -13,10 +13,18 @@ import type { ContentType, MxSpacePublisherSettings, PublishState } from './type
 export async function loadPluginSettings(
   plugin: MxSpacePublisherPlugin,
 ): Promise<MxSpacePublisherSettings> {
-  return {
+  const settings = {
     ...DEFAULT_SETTINGS,
     ...((await plugin.loadData()) as Partial<MxSpacePublisherSettings> | null),
   }
+  if (
+    !settings.imageUploadCache ||
+    typeof settings.imageUploadCache !== 'object' ||
+    Array.isArray(settings.imageUploadCache)
+  ) {
+    settings.imageUploadCache = {}
+  }
+  return settings
 }
 
 export class MxSpacePublisherSettingTab extends PluginSettingTab {

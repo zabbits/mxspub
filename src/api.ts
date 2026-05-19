@@ -1,7 +1,12 @@
 import { requestUrl, type RequestUrlResponse } from 'obsidian'
 
 import { normalizeApiUrl } from './slug'
-import type { EndpointConfig, JsonObject, JsonValue } from './types'
+import type {
+  EndpointConfig,
+  FileUploadResponse,
+  JsonObject,
+  JsonValue,
+} from './types'
 
 type ApiResponseBody = JsonValue | undefined
 
@@ -42,6 +47,56 @@ export class MxSpaceApiClient {
 
   async request<T>(path: string, options: RequestOptions = {}): Promise<T> {
     return this.perform<T>(path, options, true)
+  }
+
+  async uploadImage(file: {
+    data: ArrayBuffer
+    filename: string
+    contentType: string
+  }): Promise<FileUploadResponse> {
+    const boundary = `----mxspub-${Date.now().toString(36)}-${Math.random()
+      .toString(36)
+      .slice(2)}`
+    const body = multipartBody({
+      boundary,
+      contentType: file.contentType,
+      data: file.data,
+      fieldName: 'file',
+      filename: file.filename,
+    })
+    const headers: Record<string, string> = {
+      accept: 'application/json',
+      'content-type': `multipart/form-data; boundary=${boundary}`,
+    }
+    Object.assign(headers, await this.options.authProvider?.getAuthHeaders())
+
+    const response = await requestUrl({
+      body,
+      headers,
+      method: 'POST',
+      throw: false,
+      url: buildUrl(this.options.apiBase, '/objects/upload', { type: 'image' }),
+    })
+
+    const responseBody = parseResponseBody(response)
+    if (response.status >= 200 && response.status < 300) {
+      if (
+        isJsonObject(responseBody) &&
+        typeof responseBody.url === 'string' &&
+        typeof responseBody.name === 'string'
+      ) {
+        return { name: responseBody.name, url: responseBody.url }
+      }
+      throw new UserFacingError('mx-space upload response is invalid.', {
+        body: responseBody,
+        status: response.status,
+      })
+    }
+
+    throw new UserFacingError(messageForStatus(response.status, responseBody), {
+      body: responseBody,
+      status: response.status,
+    })
   }
 
   private async perform<T>(
@@ -165,4 +220,33 @@ function isJsonObject(value: ApiResponseBody): value is JsonObject {
 
 function isStringArray(value: JsonValue | undefined): value is string[] {
   return Array.isArray(value) && value.every((item) => typeof item === 'string')
+}
+
+function multipartBody(input: {
+  boundary: string
+  contentType: string
+  data: ArrayBuffer
+  fieldName: string
+  filename: string
+}): ArrayBuffer {
+  const encoder = new TextEncoder()
+  const header = encoder.encode(
+    `--${input.boundary}\r\n` +
+      `Content-Disposition: form-data; name="${input.fieldName}"; filename="${escapeHeaderValue(
+        input.filename,
+      )}"\r\n` +
+      `Content-Type: ${input.contentType}\r\n\r\n`,
+  )
+  const footer = encoder.encode(`\r\n--${input.boundary}--\r\n`)
+  const body = new Uint8Array(
+    header.byteLength + input.data.byteLength + footer.byteLength,
+  )
+  body.set(header, 0)
+  body.set(new Uint8Array(input.data), header.byteLength)
+  body.set(footer, header.byteLength + input.data.byteLength)
+  return body.buffer
+}
+
+function escapeHeaderValue(value: string): string {
+  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
 }

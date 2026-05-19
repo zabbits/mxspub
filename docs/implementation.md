@@ -23,6 +23,8 @@ files, stdout/stderr output model, or error codes.
   selected type back as part of the successful publish result.
 - If `mxspace.id` exists, publish updates the remote document.
 - If `mxspace.id` is missing, publish creates a remote document.
+- Local Obsidian image links are uploaded and rewritten in the outgoing payload
+  before the remote document is created or updated.
 - `mxspace.state` controls draft/published state for posts and notes.
 - `MX Space: Unpublish current file` explicitly sets the remote post/note to
   draft. Pages do not support unpublish.
@@ -38,6 +40,7 @@ files, stdout/stderr output model, or error codes.
   `category`.
 - `apiBase` and `authBase`: probed endpoint bases cached after connection
   discovery.
+- `imageUploadCache`: SHA-256 image hash to uploaded mx-space URL cache.
 
 ## Frontmatter Contract
 
@@ -158,6 +161,8 @@ Relations:
 Content payloads:
 
 - All body content is sent as Markdown.
+- Local Obsidian image links are replaced with uploaded mx-space URLs in the
+  outgoing payload only; the local Markdown file is not modified.
 - `contentFormat` is always `markdown`.
 - `text` is the Markdown body and remains the rendering/search source.
 - `content` is a valid Lexical editor-state JSON snapshot generated from the
@@ -178,6 +183,8 @@ Content payloads:
 - `src/payload.ts`: Markdown payload builders.
 - `src/relations.ts`: category/topic resolution/creation and tag normalization.
 - `src/frontmatter.ts`: active file extraction and `mxspace` updates.
+- `src/images.ts`: Obsidian image link resolution, upload, payload rewriting,
+  and content-hash cache.
 - `src/publisher.ts`: publish/update/unpublish orchestration.
 - `src/modals.ts`: type picker and confirmation modal.
 - `src/types.ts`: shared internal types.
@@ -190,6 +197,8 @@ Content payloads:
 - Missing API URL opens settings and prompts the user to configure it.
 - Missing API key prompts the user to select an API key secret.
 - Authentication failure prompts the user to check or replace the API key.
+- Missing local images stop publish and name the unresolved link.
+- Image upload failures stop publish before creating or updating remote content.
 - Missing remote content asks the user to remove `mxspace.id` and republish.
 - Relation creation failure stops the publish and names the failing relation.
 - Server validation errors show the server message when available.
@@ -205,6 +214,11 @@ Errors are optimized for Obsidian user feedback, not CLI error-code parity.
 - Publishing the same file again updates the remote post.
 - Publishing a note with a missing topic creates the topic.
 - Publishing a page succeeds.
+- Publishing a file with `![[image.png]]` uploads the image and sends the
+  mx-space image URL in the payload.
+- Publishing a file that references the same image twice uploads it once.
+- Publishing another file with the same image content reuses the cached URL.
+- Publishing with a missing local image fails without remote write.
 - Unpublishing an existing post switches it to draft.
 - Unpublishing an existing note switches it to draft.
 - API key auth publishes content.

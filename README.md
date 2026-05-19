@@ -16,6 +16,8 @@ for API calls and credentials.
   snapshot for mx-core editors.
 - Store API keys through Obsidian SecretStorage.
 - Check whether the selected API key can authenticate before publishing.
+- Upload local Obsidian image embeds to mx-space during publish and reuse
+  previously uploaded images by content hash.
 
 ## Frontmatter
 
@@ -46,6 +48,24 @@ mxspace:
 Supported `mxspace.type` values are `post`, `note`, and `page`. Supported
 `mxspace.state` values are `draft` and `publish`; state only applies to posts
 and notes.
+
+## Images
+
+Local Obsidian image links are uploaded before publish. The remote mx-space
+payload uses mx-space image URLs, while the local note remains unchanged.
+
+Supported local image forms include standard Markdown images and Obsidian wiki
+embeds such as:
+
+```md
+![Alt](assets/example.png)
+![[example.png]]
+![[assets/example.png|Alt]]
+```
+
+External `http` and `https` images are left unchanged. Uploaded images are
+cached by SHA-256 content hash so the same image is not uploaded again from the
+same vault.
 
 ## Development
 

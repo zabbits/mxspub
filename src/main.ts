@@ -25,6 +25,7 @@ export default class MxSpacePublisherPlugin extends Plugin {
       this.settings,
       this.auth,
       () => this.ensureEndpointConfigured(),
+      () => this.saveSettings(),
     )
 
     this.addSettingTab(new MxSpacePublisherSettingTab(this.app, this))

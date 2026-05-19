@@ -31,6 +31,7 @@ export interface MxSpacePublisherSettings {
   defaultType: ContentType
   defaultState: PublishState
   defaultPostCategory: string
+  imageUploadCache: ImageUploadCache
 }
 
 export const DEFAULT_SETTINGS: MxSpacePublisherSettings = {
@@ -41,6 +42,20 @@ export const DEFAULT_SETTINGS: MxSpacePublisherSettings = {
   defaultType: 'post',
   defaultState: 'draft',
   defaultPostCategory: 'General',
+  imageUploadCache: {},
+}
+
+export interface ImageUploadCacheEntry extends JsonObject {
+  url: string
+  name: string
+  byteSize: number
+  sourcePath: string
+  uploadedAt: string
+  lastUsedAt: string
+}
+
+export interface ImageUploadCache extends JsonObject {
+  [hash: string]: ImageUploadCacheEntry | undefined
 }
 
 export interface EndpointConfig {
@@ -334,4 +349,9 @@ export interface PublishStatusPayload extends JsonObject {
 
 export interface PublishStatusResponse extends JsonObject {
   success: boolean
+}
+
+export interface FileUploadResponse extends JsonObject {
+  url: string
+  name: string
 }
