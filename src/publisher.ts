@@ -205,6 +205,10 @@ export class Publisher {
 
     const now = new Date().toISOString()
     const slug = documentSlug(created) ?? payload.slug ?? resolveSlug(context)
+    const publishFrontmatter: Partial<PublishFrontmatter<T>> = {
+      title: context.publish.title ?? context.fileBasename,
+      ...frontmatter,
+    }
     await updatePublishFrontmatter(this.app, file, {
       mx: {
         id,
@@ -214,7 +218,7 @@ export class Publisher {
         type,
         updated: now,
       },
-      publish: frontmatter,
+      publish: publishFrontmatter,
     })
     await ensurePublishedBaseFile(this.app)
 

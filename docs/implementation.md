@@ -104,7 +104,9 @@ Rules:
 
 - `mxType` is `post`, `note`, or `page`.
 - `mxState` is `draft` or `publish`; it only applies to posts and notes.
-- `title` priority is top-level `title`, then file basename.
+- `title` priority is top-level `title`, then file basename. If `title` is
+  absent, successful publish writes the file basename back to top-level
+  `title`.
 - Top-level `created` controls the remote content `createdAt` value for posts
   and notes. If `created` is absent, the server chooses the creation time on
   create and leaves it unchanged on update. Top-level `createdAt` is accepted as
@@ -121,7 +123,7 @@ Rules:
 - Post `tags` are normalized to `tags: string[]`; they are not created through
   the category API because mx-core exposes tags as post metadata/aggregates
   rather than editable tag records.
-- Publishing success writes back `mxType`, `mxRemoteId`, `slug`,
+- Publishing success writes back `title`, `mxType`, `mxRemoteId`, `slug`,
   `mxPublishedAt`, and `updated`. Posts and notes also write `mxState`.
 - Frontmatter writes keep known fields ordered as `title`, then type-specific
   fields, then `created`, `updated`, `slug`, `mxType`, `mxState`,

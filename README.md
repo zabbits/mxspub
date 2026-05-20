@@ -51,6 +51,8 @@ summary: "Summary"
 
 Supported `mxType` values are `post`, `note`, and `page`. Supported `mxState`
 values are `draft` and `publish`; state is only written for posts and notes.
+If `title` is missing, publish uses the file name and writes it back to
+frontmatter.
 `updated` records the latest local publish/update time. mx-core currently
 derives remote modified time from server-side content changes rather than an
 uploaded frontmatter field.
