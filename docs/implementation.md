@@ -17,25 +17,25 @@ files, stdout/stderr output model, or error codes.
 - The companion command is `Mxspub: Unpublish`.
 - `Mxspub: Open management` opens a tabbed management view for cached images
   and the published-content Base entrypoint.
-- The plugin determines the target content type from `mxType` in the
+- The plugin determines the target content type from `type` in the
   current file's frontmatter.
-- If `mxType` is missing, the plugin opens a type picker and writes the
+- If `type` is missing, the plugin opens a type picker and writes the
   selected type back as part of the successful publish result.
-- If `mxRemoteId` exists, publish updates the remote document.
-- If `mxRemoteId` is missing, publish creates a remote document.
+- If `remoteId` exists, publish updates the remote document.
+- If `remoteId` is missing, publish creates a remote document.
 - Local Obsidian image links are uploaded and rewritten in the outgoing payload
   before the remote document is created or updated.
-- `mxState` controls draft/published state for posts and notes. Pages do not
-  write `mxState`.
-- `Mxspub: Unpublish` explicitly sets the remote post/note to
-  draft. Pages do not support unpublish.
+- `publish` controls whether posts and notes are published. Pages do not
+  write `publish`.
+- `Mxspub: Unpublish` explicitly sets the remote post/note publish status to
+  false. Pages do not support unpublish.
 
 ## Settings
 
 - `apiUrl`: mx-core origin, for example `https://blog.example.com`.
 - `apiKeySecretId`: optional Obsidian SecretStorage id for an `x-api-key`
   credential.
-- `defaultType`: fallback content type when a file has no `mxType`.
+- `defaultType`: fallback content type when a file has no `type`.
 - `defaultState`: fallback publish state for posts and notes.
 - `defaultPostCategory`: category used when a post has no top-level
   `category`.
@@ -52,10 +52,10 @@ title: "Example"
 created: "2026-05-01T09:00:00.000Z"
 updated: "2026-05-18T12:00:00.000Z"
 slug: "example"
-mxType: post
-mxState: publish
-mxRemoteId: "1234567890"
-mxPublishedAt: "2026-05-18T12:00:00.000Z"
+type: post
+publish: true
+remoteId: "1234567890"
+published: "2026-05-18T12:00:00.000Z"
 ```
 
 Post-specific fields live at the top level:
@@ -65,8 +65,8 @@ title: "Example"
 created: "2026-05-01T09:00:00.000Z"
 updated: "2026-05-18T12:00:00.000Z"
 slug: example
-mxType: post
-mxState: publish
+type: post
+publish: true
 category: "tech"
 tags: ["cli", "obsidian"]
 summary: "Summary"
@@ -79,8 +79,8 @@ title: "Daily note"
 created: "2026-05-01T09:00:00.000Z"
 updated: "2026-05-18T12:00:00.000Z"
 slug: daily-note
-mxType: note
-mxState: draft
+type: note
+publish: false
 topic: "daily"
 mood: "calm"
 weather: "sunny"
@@ -95,15 +95,15 @@ title: "About"
 created: "2026-05-01T09:00:00.000Z"
 updated: "2026-05-18T12:00:00.000Z"
 slug: about
-mxType: page
+type: page
 subtitle: "About this site"
 order: 10
 ```
 
 Rules:
 
-- `mxType` is `post`, `note`, or `page`.
-- `mxState` is `draft` or `publish`; it only applies to posts and notes.
+- `type` is `post`, `note`, or `page`.
+- `publish` is `true` or `false`; it only applies to posts and notes.
 - `title` priority is top-level `title`, then file basename. If `title` is
   absent, successful publish writes the file basename back to top-level
   `title`.
@@ -111,9 +111,9 @@ Rules:
   and notes. If `created` is absent, the server chooses the creation time on
   create and leaves it unchanged on update. Top-level `createdAt` is accepted as
   a read alias but the plugin writes `created` when it needs to persist a value.
-- Top-level `updated` records the latest local publish/update time. It is not
-  sent as an API payload field because mx-core derives remote `modifiedAt` from
-  server-side content changes.
+- Top-level `updated` is user-maintained local metadata. The plugin reads it
+  for display but does not write it during publish or send it as an API payload
+  field.
 - Top-level `slug` is user-editable and is sent on every create/update. If it
   is absent, the plugin generates one from the file basename and writes it back.
 - Posts require a category. If top-level `category` is missing, the plugin uses
@@ -123,11 +123,11 @@ Rules:
 - Post `tags` are normalized to `tags: string[]`; they are not created through
   the category API because mx-core exposes tags as post metadata/aggregates
   rather than editable tag records.
-- Publishing success writes back `title`, `mxType`, `mxRemoteId`, `slug`,
-  `mxPublishedAt`, and `updated`. Posts and notes also write `mxState`.
+- Publishing success writes back `title`, `type`, `remoteId`, `slug`, and
+  `published`. Posts and notes also write `publish`.
 - Frontmatter writes keep known fields ordered as `title`, then type-specific
-  fields, then `created`, `updated`, `slug`, `mxType`, `mxState`,
-  `mxRemoteId`, and `mxPublishedAt`. Unknown fields are preserved after known
+  fields, then `created`, `updated`, `slug`, `type`, `publish`, `remoteId`,
+  and `published`. Unknown fields are preserved after known
   fields.
 - Creates prefer the server-returned slug when mx-space normalizes or uniquifies
   the requested slug.
@@ -182,7 +182,8 @@ Content payloads:
   open plugin-published documents without throwing JSON parse errors.
 - Top-level frontmatter `created` is sent as API payload `created`.
 - Top-level frontmatter `slug` is sent as API payload `slug`.
-- Top-level frontmatter `updated` is local metadata and is not sent.
+- Top-level frontmatter `updated` is user-maintained local metadata and is not
+  sent.
 - API calls use concrete TypeScript response models derived from mx-core
   controller/schema/types: `MxPost`, `MxNote`, `MxPage`, `MxCategory`,
   `MxTopic`, list wrappers, and publish status responses.
@@ -216,7 +217,7 @@ Content payloads:
 - Authentication failure prompts the user to check or replace the API key.
 - Missing local images stop publish and name the unresolved link.
 - Image upload failures stop publish before creating or updating remote content.
-- Missing remote content asks the user to clear `mxRemoteId` and republish.
+- Missing remote content asks the user to clear `remoteId` and republish.
 - Relation creation failure stops the publish and names the failing relation.
 - Server validation errors show the server message when available.
 - Network errors show the API URL and failed stage.
@@ -237,9 +238,9 @@ Errors are optimized for Obsidian user feedback, not CLI error-code parity.
 - Publishing a file that references the same image twice uploads it once.
 - Publishing another file with the same image content reuses the cached URL.
 - Publishing with a missing local image fails without remote write.
-- Unpublishing an existing post switches it to draft.
-- Unpublishing an existing note switches it to draft.
+- Unpublishing an existing post writes `publish: false`.
+- Unpublishing an existing note writes `publish: false`.
 - API key auth publishes content.
-- `Mxspub/mxspub-published.base` is created, filters files with `mxRemoteId`,
+- `Mxspub/mxspub-published.base` is created, filters files with `remoteId`,
   defaults to the custom Mxspub view, and includes native overview, recent,
-  type-specific, published, and draft table fallback views.
+  type-specific, published, and unpublished table fallback views.

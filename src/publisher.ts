@@ -73,7 +73,10 @@ export class Publisher {
       if (type === 'post') {
         const typedContext = withMxType(context, 'post')
         const relations = await relationService.resolveForPost(typedContext)
-        const state = typedContext.mx.state ?? this.settings.defaultState
+        const state = publishStateFromMetadata(
+          typedContext.mx.publish,
+          this.settings.defaultState,
+        )
         await this.publishPreparedFile({
           api,
           context: typedContext,
@@ -94,7 +97,10 @@ export class Publisher {
       if (type === 'note') {
         const typedContext = withMxType(context, 'note')
         const relations = await relationService.resolveForNote(typedContext)
-        const state = typedContext.mx.state ?? this.settings.defaultState
+        const state = publishStateFromMetadata(
+          typedContext.mx.publish,
+          this.settings.defaultState,
+        )
         await this.publishPreparedFile({
           api,
           context: typedContext,
@@ -114,7 +120,7 @@ export class Publisher {
 
       const typedContext = withMxType(context, 'page')
       const relations = await relationService.resolveForPage()
-      const state = typedContext.mx.state ?? this.settings.defaultState
+      const state = this.settings.defaultState
       await this.publishPreparedFile({
         api,
         context: typedContext,
@@ -139,16 +145,16 @@ export class Publisher {
       const type = context.mx.type
       const id = context.mx.id
 
-      if (!type) throw new UserFacingError('mxType is missing.')
+      if (!type) throw new UserFacingError('type is missing.')
       if (type === 'page') {
         throw new UserFacingError('Pages do not support unpublish.')
       }
-      if (!id) throw new UserFacingError('mxRemoteId is missing.')
+      if (!id) throw new UserFacingError('remoteId is missing.')
 
       const confirmed = await confirmAction(
         this.app,
         'Unpublish current file',
-        `Set this remote ${type} to draft?`,
+        `Mark this remote ${type} as unpublished?`,
       )
       if (!confirmed) return
 
@@ -161,8 +167,7 @@ export class Publisher {
       })
 
       await updateMxPublishMetadata(this.app, file, {
-        state: 'draft',
-        updated: new Date().toISOString(),
+        publish: false,
       })
       await ensurePublishedBaseFile(this.app)
       new Notice(`${typeLabel(type)} unpublished.`)
@@ -212,11 +217,10 @@ export class Publisher {
     await updatePublishFrontmatter(this.app, file, {
       mx: {
         id,
-        publishedAt: context.mx.publishedAt ?? now,
+        published: context.mx.published ?? now,
+        publish: type === 'page' ? undefined : state === 'publish',
         slug,
-        state: type === 'page' ? undefined : state,
         type,
-        updated: now,
       },
       publish: publishFrontmatter,
     })
@@ -302,4 +306,13 @@ function typeLabel(type: ContentType): string {
   if (type === 'post') return 'Post'
   if (type === 'note') return 'Note'
   return 'Page'
+}
+
+function publishStateFromMetadata(
+  publish: boolean | undefined,
+  fallback: PublishState,
+): PublishState {
+  if (publish === true) return 'publish'
+  if (publish === false) return 'draft'
+  return fallback
 }

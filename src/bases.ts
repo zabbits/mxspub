@@ -7,7 +7,7 @@ export const MXSPUB_BASE_PATH = 'Mxspub/mxspub-published.base'
 const MXSPUB_BASE_CONTENT = `filters:
   and:
     - file.ext == "md"
-    - file.hasProperty("mxRemoteId")
+    - file.hasProperty("remoteId")
 formulas:
   local_file: file.asLink()
 properties:
@@ -15,19 +15,19 @@ properties:
     displayName: File
   title:
     displayName: Title
-  mxType:
+  type:
     displayName: Type
-  mxState:
-    displayName: State
+  publish:
+    displayName: Publish
   category:
     displayName: Category
   topic:
     displayName: Topic
-  mxRemoteId:
+  remoteId:
     displayName: Remote ID
   slug:
     displayName: Slug
-  mxPublishedAt:
+  published:
     displayName: Published
   updated:
     displayName: Updated
@@ -39,32 +39,32 @@ views:
     order:
       - formula.local_file
       - title
-      - mxType
-      - mxState
+      - type
+      - publish
       - category
       - topic
       - slug
       - updated
-      - mxPublishedAt
-      - mxRemoteId
+      - published
+      - remoteId
     sort:
       - property: updated
         direction: DESC
   - type: table
     name: Overview
     groupBy:
-      property: mxType
+      property: type
       direction: ASC
     order:
       - formula.local_file
       - title
-      - mxType
-      - mxState
+      - type
+      - publish
       - category
       - topic
       - slug
       - updated
-      - mxPublishedAt
+      - published
     sort:
       - property: updated
         direction: DESC
@@ -73,11 +73,11 @@ views:
     order:
       - formula.local_file
       - title
-      - mxType
-      - mxState
+      - type
+      - publish
       - slug
       - updated
-      - mxPublishedAt
+      - published
       - file.folder
     sort:
       - property: updated
@@ -86,21 +86,21 @@ views:
     name: Posts
     filters:
       and:
-        - mxType == "post"
+        - type == "post"
     groupBy:
-      property: mxState
+      property: publish
       direction: ASC
     order:
       - formula.local_file
       - title
       - category
       - tags
-      - mxType
-      - mxState
+      - type
+      - publish
       - slug
       - updated
-      - mxPublishedAt
-      - mxRemoteId
+      - published
+      - remoteId
     sort:
       - property: updated
         direction: DESC
@@ -108,9 +108,9 @@ views:
     name: Notes
     filters:
       and:
-        - mxType == "note"
+        - type == "note"
     groupBy:
-      property: mxState
+      property: publish
       direction: ASC
     order:
       - formula.local_file
@@ -118,12 +118,12 @@ views:
       - topic
       - mood
       - weather
-      - mxType
-      - mxState
+      - type
+      - publish
       - slug
       - updated
-      - mxPublishedAt
-      - mxRemoteId
+      - published
+      - remoteId
     sort:
       - property: updated
         direction: DESC
@@ -131,17 +131,17 @@ views:
     name: Pages
     filters:
       and:
-        - mxType == "page"
+        - type == "page"
     order:
       - formula.local_file
       - title
       - subtitle
       - order
-      - mxType
+      - type
       - slug
       - updated
-      - mxPublishedAt
-      - mxRemoteId
+      - published
+      - remoteId
     sort:
       - property: updated
         direction: DESC
@@ -149,35 +149,35 @@ views:
     name: Published
     filters:
       and:
-        - mxState == "publish"
+        - publish == true
     order:
       - formula.local_file
       - title
-      - mxType
-      - mxState
+      - type
+      - publish
       - category
       - topic
       - slug
       - updated
-      - mxPublishedAt
+      - published
     sort:
-      - property: mxPublishedAt
+      - property: published
         direction: DESC
   - type: table
-    name: Draft
+    name: Unpublished
     filters:
       and:
-        - mxState == "draft"
+        - publish == false
     order:
       - formula.local_file
       - title
-      - mxType
-      - mxState
+      - type
+      - publish
       - category
       - topic
       - slug
       - updated
-      - mxRemoteId
+      - remoteId
     sort:
       - property: updated
         direction: DESC

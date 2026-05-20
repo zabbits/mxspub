@@ -36,10 +36,10 @@ const FRONTMATTER_FIELD_ORDER = [
   'created',
   'updated',
   'slug',
-  'mxType',
-  'mxState',
-  'mxRemoteId',
-  'mxPublishedAt',
+  'type',
+  'publish',
+  'remoteId',
+  'published',
 ]
 
 export function getActiveMarkdownFile(app: App): TFile | null {
@@ -162,11 +162,11 @@ function parseFrontmatter(source: string): YamlObject {
 
 function normalizeMxPublishMetadata(value: YamlObject): MxPublishMetadata {
   return {
-    id: stringValue(value.mxRemoteId),
-    publishedAt: stringValue(value.mxPublishedAt),
+    id: stringValue(value.remoteId),
+    publish: booleanValue(value.publish),
+    published: stringValue(value.published),
     slug: stringValue(value.slug),
-    state: validPublishState(value.mxState),
-    type: validContentType(value.mxType),
+    type: validContentType(value.type),
     updated: stringValue(value.updated),
   }
 }
@@ -262,15 +262,19 @@ function numberValue(value: YamlValue | undefined): number | undefined {
   return Number.isFinite(n) ? n : undefined
 }
 
+function booleanValue(value: YamlValue | undefined): boolean | undefined {
+  return typeof value === 'boolean' ? value : undefined
+}
+
 function applyMxPublishPatch(
   frontmatter: YamlObject,
   patch: Partial<MxPublishMetadata>,
 ): void {
   const rootPatch: YamlObject = {}
-  if ('publishedAt' in patch) rootPatch.mxPublishedAt = patch.publishedAt
-  if ('id' in patch) rootPatch.mxRemoteId = patch.id
-  if ('state' in patch) rootPatch.mxState = patch.state
-  if ('type' in patch) rootPatch.mxType = patch.type
+  if ('published' in patch) rootPatch.published = patch.published
+  if ('id' in patch) rootPatch.remoteId = patch.id
+  if ('publish' in patch) rootPatch.publish = patch.publish
+  if ('type' in patch) rootPatch.type = patch.type
   if ('slug' in patch) rootPatch.slug = patch.slug
   if ('updated' in patch) rootPatch.updated = patch.updated
   applyRootPatch(frontmatter, rootPatch as Partial<PublishFrontmatter<ContentType>>)

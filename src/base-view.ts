@@ -10,7 +10,7 @@ import {
 export const MXSPUB_BASE_VIEW_TYPE = 'mxspub-published-view'
 
 type ContentSection = 'post' | 'note' | 'page'
-type EntryState = 'publish' | 'draft' | 'page' | 'missing'
+type EntryState = 'publish' | 'unpublished' | 'page' | 'missing'
 
 interface PublishedEntry {
   category: string
@@ -105,8 +105,8 @@ class MxspubPublishedBaseView extends BasesView {
     )
     this.renderStat(
       stats,
-      'Draft',
-      entries.filter((entry) => entry.state === 'draft').length,
+      'Unpublished',
+      entries.filter((entry) => entry.state === 'unpublished').length,
     )
   }
 
@@ -208,20 +208,20 @@ class MxspubPublishedBaseView extends BasesView {
   }
 
   private readEntry(entry: BasesEntry): PublishedEntry {
-    const type = valueOf(entry, 'note.mxType') || 'post'
+    const type = valueOf(entry, 'note.type') || 'post'
     const title = valueOf(entry, 'note.title')
     return {
       category: valueOf(entry, 'note.category'),
       created: valueOf(entry, 'note.created') || valueOf(entry, 'file.ctime'),
       entry,
-      id: valueOf(entry, 'note.mxRemoteId'),
+      id: valueOf(entry, 'note.remoteId'),
       slug: valueOf(entry, 'note.slug'),
-      state: entryState(type, valueOf(entry, 'note.mxState')),
+      state: entryState(type, valueOf(entry, 'note.publish')),
       tags: valueOf(entry, 'note.tags'),
       title,
       topic: valueOf(entry, 'note.topic'),
       type,
-      updated: valueOf(entry, 'note.updated') || valueOf(entry, 'note.mxPublishedAt'),
+      updated: valueOf(entry, 'note.updated'),
     }
   }
 
@@ -239,14 +239,17 @@ class MxspubPublishedBaseView extends BasesView {
   }
 }
 
-function entryState(type: string, state: string): EntryState {
-  if (state === 'publish' || state === 'draft') return state
+function entryState(type: string, publish: string): EntryState {
+  if (publish === 'true') return 'publish'
+  if (publish === 'false') return 'unpublished'
   return type === 'page' ? 'page' : 'missing'
 }
 
 function valueOf(entry: BasesEntry, propertyId: BasesPropertyId): string {
   const value = entry.getValue(propertyId)
-  return value ? value.toString().trim() : ''
+  if (!value || !value.isTruthy()) return ''
+  const normalized = value.toString().trim()
+  return normalized === 'null' ? '' : normalized
 }
 
 function shortId(value: string): string {
@@ -255,14 +258,14 @@ function shortId(value: string): string {
 
 function statusIcon(state: EntryState): string {
   if (state === 'publish') return 'send'
-  if (state === 'draft') return 'pencil'
+  if (state === 'unpublished') return 'pencil'
   if (state === 'page') return 'file-text'
   return 'circle-alert'
 }
 
 function statusLabel(state: EntryState): string {
   if (state === 'publish') return 'Published'
-  if (state === 'draft') return 'Draft'
+  if (state === 'unpublished') return 'Unpublished'
   if (state === 'page') return 'Page'
   return 'Missing state'
 }
@@ -272,5 +275,5 @@ function splitTags(value: string): string[] {
     .replace(/^\[|\]$/g, '')
     .split(/,\s*/)
     .map((item) => item.replace(/^#/, '').trim())
-    .filter(Boolean)
+    .filter((item) => Boolean(item) && item !== 'null')
 }

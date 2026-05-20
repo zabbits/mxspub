@@ -78,8 +78,8 @@ export interface MxPublishMetadata extends JsonObject {
   type?: ContentType
   id?: string
   slug?: string
-  state?: PublishState
-  publishedAt?: string
+  publish?: boolean
+  published?: string
   updated?: string
 }
 

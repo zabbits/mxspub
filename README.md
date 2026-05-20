@@ -9,8 +9,8 @@ for API calls and credentials.
 ## Features
 
 - Publish the current file to mx-space as a post, note, or page.
-- Update existing remote content when `mxRemoteId` is present.
-- Unpublish posts and notes by switching the remote entry back to draft.
+- Update existing remote content when `remoteId` is present.
+- Unpublish posts and notes by marking the remote entry unpublished.
 - Resolve or create missing post categories and note topics.
 - Send Markdown as the source body while also generating a Lexical JSON
   snapshot for mx-core editors.
@@ -29,10 +29,10 @@ title: "Example"
 created: "2026-05-01T09:00:00.000Z"
 updated: "2026-05-18T12:00:00.000Z"
 slug: "example"
-mxType: post
-mxState: publish
-mxRemoteId: "1234567890"
-mxPublishedAt: "2026-05-18T12:00:00.000Z"
+type: post
+publish: true
+remoteId: "1234567890"
+published: "2026-05-18T12:00:00.000Z"
 ```
 
 Type-specific fields stay at the top level:
@@ -42,20 +42,19 @@ title: "Example"
 created: "2026-05-01T09:00:00.000Z"
 updated: "2026-05-18T12:00:00.000Z"
 slug: example
-mxType: post
-mxState: publish
+type: post
+publish: true
 category: "tech"
 tags: ["obsidian", "mx-space"]
 summary: "Summary"
 ```
 
-Supported `mxType` values are `post`, `note`, and `page`. Supported `mxState`
-values are `draft` and `publish`; state is only written for posts and notes.
+Supported `type` values are `post`, `note`, and `page`. `publish` is a boolean
+used for posts and notes; pages do not write `publish`.
 If `title` is missing, publish uses the file name and writes it back to
 frontmatter.
-`updated` records the latest local publish/update time. mx-core currently
-derives remote modified time from server-side content changes rather than an
-uploaded frontmatter field.
+`updated` is a user-maintained local timestamp. Mxspub reads it for display but
+does not write it during publish.
 
 ## Images
 
