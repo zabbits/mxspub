@@ -11,7 +11,7 @@ import type {
 
 export const MXSPUB_MANAGEMENT_VIEW = 'mxspub-management'
 
-type ManagementTab = 'images' | 'published'
+export type ManagementTab = 'images' | 'published'
 
 export class MxspubManagementView extends ItemView {
   private activeTab: ManagementTab = 'images'
@@ -39,6 +39,11 @@ export class MxspubManagementView extends ItemView {
     this.addAction('refresh-cw', 'Refresh', () => {
       void this.render()
     })
+    await this.render()
+  }
+
+  async openTab(tab: ManagementTab): Promise<void> {
+    this.activeTab = tab
     await this.render()
   }
 
@@ -130,11 +135,11 @@ export class MxspubManagementView extends ItemView {
     this.renderSummary(container, [['Base file', MXSPUB_BASE_PATH]])
     const panel = container.createDiv({ cls: 'mxspub-management-panel' })
     panel.createEl('p', {
-      text: 'Published content is tracked by flat mx frontmatter fields and displayed with Obsidian Bases.',
+      text: 'Published content opens in a custom Mxspub Base view with native table fallbacks.',
     })
     const button = panel.createEl('button', {
       cls: 'mod-cta',
-      text: 'Open Base',
+      text: 'Open Published Base',
     })
     button.addEventListener('click', () => {
       void this.app.workspace.getLeaf('tab').openFile(baseFile)

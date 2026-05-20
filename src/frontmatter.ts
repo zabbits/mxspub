@@ -21,6 +21,27 @@ import type {
   YamlValue,
 } from './types'
 
+const FRONTMATTER_FIELD_ORDER = [
+  'title',
+  'category',
+  'tags',
+  'summary',
+  'topic',
+  'mood',
+  'weather',
+  'publicAt',
+  'location',
+  'subtitle',
+  'order',
+  'created',
+  'updated',
+  'slug',
+  'mxType',
+  'mxState',
+  'mxRemoteId',
+  'mxPublishedAt',
+]
+
 export function getActiveMarkdownFile(app: App): TFile | null {
   const file = app.workspace.getActiveFile()
   if (!file || file.extension !== 'md') return null
@@ -275,13 +296,29 @@ function applyRootPatch(
 function formatFrontmatterYaml(frontmatter: YamlObject): string {
   const sections: string[] = []
 
-  const cleanedRest = removeUndefinedDeep(frontmatter)
+  const cleanedRest = orderFrontmatterFields(removeUndefinedDeep(frontmatter))
   if (hasEnumerableValues(cleanedRest)) {
     const restYaml = stringifyYaml(cleanedRest).trim()
     if (restYaml && restYaml !== '{}') sections.push(restYaml)
   }
 
   return `${sections.join('\n')}\n`
+}
+
+function orderFrontmatterFields(value: YamlValue | undefined): YamlObject {
+  if (!isYamlObject(value)) return {}
+  const ordered: YamlObject = {}
+  for (const key of FRONTMATTER_FIELD_ORDER) {
+    if (Object.prototype.hasOwnProperty.call(value, key)) {
+      ordered[key] = value[key]
+    }
+  }
+  for (const [key, item] of Object.entries(value)) {
+    if (!Object.prototype.hasOwnProperty.call(ordered, key)) {
+      ordered[key] = item
+    }
+  }
+  return ordered
 }
 
 function removeUndefinedDeep(value: YamlValue | undefined): YamlValue | undefined {

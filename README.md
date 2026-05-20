@@ -25,12 +25,14 @@ for API calls and credentials.
 Publish metadata lives in flat frontmatter fields:
 
 ```yaml
-mxType: post
-mxRemoteId: "1234567890"
-mxState: publish
-slug: "example"
-mxPublishedAt: "2026-05-18T12:00:00.000Z"
+title: "Example"
+created: "2026-05-01T09:00:00.000Z"
 updated: "2026-05-18T12:00:00.000Z"
+slug: "example"
+mxType: post
+mxState: publish
+mxRemoteId: "1234567890"
+mxPublishedAt: "2026-05-18T12:00:00.000Z"
 ```
 
 Type-specific fields stay at the top level:
@@ -38,16 +40,20 @@ Type-specific fields stay at the top level:
 ```yaml
 title: "Example"
 created: "2026-05-01T09:00:00.000Z"
+updated: "2026-05-18T12:00:00.000Z"
+slug: example
+mxType: post
+mxState: publish
 category: "tech"
 tags: ["obsidian", "mx-space"]
 summary: "Summary"
-mxType: post
-mxState: publish
-slug: example
 ```
 
 Supported `mxType` values are `post`, `note`, and `page`. Supported `mxState`
 values are `draft` and `publish`; state is only written for posts and notes.
+`updated` records the latest local publish/update time. mx-core currently
+derives remote modified time from server-side content changes rather than an
+uploaded frontmatter field.
 
 ## Images
 
@@ -73,7 +79,8 @@ Use `Mxspub: Open management` to inspect plugin state:
 
 - `Images`: cached uploaded images, source path, size, last-used time, and URL.
 - `Published`: opens the generated Obsidian Base at
-  `Mxspub/mxspub-published.base`.
+  `Mxspub/mxspub-published.base`. The Base defaults to a custom Mxspub view
+  grouped by posts, notes, and pages, with native table fallback views.
 
 ## Development
 

@@ -48,12 +48,14 @@ files, stdout/stderr output model, or error codes.
 Publish metadata lives in flat frontmatter fields:
 
 ```yaml
-mxType: post
-mxRemoteId: "1234567890"
-mxState: publish
-slug: "example"
-mxPublishedAt: "2026-05-18T12:00:00.000Z"
+title: "Example"
+created: "2026-05-01T09:00:00.000Z"
 updated: "2026-05-18T12:00:00.000Z"
+slug: "example"
+mxType: post
+mxState: publish
+mxRemoteId: "1234567890"
+mxPublishedAt: "2026-05-18T12:00:00.000Z"
 ```
 
 Post-specific fields live at the top level:
@@ -61,12 +63,13 @@ Post-specific fields live at the top level:
 ```yaml
 title: "Example"
 created: "2026-05-01T09:00:00.000Z"
+updated: "2026-05-18T12:00:00.000Z"
+slug: example
+mxType: post
+mxState: publish
 category: "tech"
 tags: ["cli", "obsidian"]
 summary: "Summary"
-mxType: post
-mxState: publish
-slug: example
 ```
 
 Note-specific fields live at the top level:
@@ -74,14 +77,15 @@ Note-specific fields live at the top level:
 ```yaml
 title: "Daily note"
 created: "2026-05-01T09:00:00.000Z"
+updated: "2026-05-18T12:00:00.000Z"
+slug: daily-note
+mxType: note
+mxState: draft
 topic: "daily"
 mood: "calm"
 weather: "sunny"
 publicAt: "2026-05-18T12:00:00.000Z"
 location: "Singapore"
-mxType: note
-mxState: draft
-slug: daily-note
 ```
 
 Page-specific fields live at the top level:
@@ -89,10 +93,11 @@ Page-specific fields live at the top level:
 ```yaml
 title: "About"
 created: "2026-05-01T09:00:00.000Z"
+updated: "2026-05-18T12:00:00.000Z"
+slug: about
+mxType: page
 subtitle: "About this site"
 order: 10
-mxType: page
-slug: about
 ```
 
 Rules:
@@ -104,6 +109,9 @@ Rules:
   and notes. If `created` is absent, the server chooses the creation time on
   create and leaves it unchanged on update. Top-level `createdAt` is accepted as
   a read alias but the plugin writes `created` when it needs to persist a value.
+- Top-level `updated` records the latest local publish/update time. It is not
+  sent as an API payload field because mx-core derives remote `modifiedAt` from
+  server-side content changes.
 - Top-level `slug` is user-editable and is sent on every create/update. If it
   is absent, the plugin generates one from the file basename and writes it back.
 - Posts require a category. If top-level `category` is missing, the plugin uses
@@ -115,6 +123,10 @@ Rules:
   rather than editable tag records.
 - Publishing success writes back `mxType`, `mxRemoteId`, `slug`,
   `mxPublishedAt`, and `updated`. Posts and notes also write `mxState`.
+- Frontmatter writes keep known fields ordered as `title`, then type-specific
+  fields, then `created`, `updated`, `slug`, `mxType`, `mxState`,
+  `mxRemoteId`, and `mxPublishedAt`. Unknown fields are preserved after known
+  fields.
 - Creates prefer the server-returned slug when mx-space normalizes or uniquifies
   the requested slug.
 - Auto-created or resolved relations are normalized back into top-level
@@ -168,6 +180,7 @@ Content payloads:
   open plugin-published documents without throwing JSON parse errors.
 - Top-level frontmatter `created` is sent as API payload `created`.
 - Top-level frontmatter `slug` is sent as API payload `slug`.
+- Top-level frontmatter `updated` is local metadata and is not sent.
 - API calls use concrete TypeScript response models derived from mx-core
   controller/schema/types: `MxPost`, `MxNote`, `MxPage`, `MxCategory`,
   `MxTopic`, list wrappers, and publish status responses.
@@ -179,6 +192,7 @@ Content payloads:
 - `src/secrets.ts`: SecretStorage helpers for API keys.
 - `src/auth.ts`: API key auth headers.
 - `src/api.ts`: requestUrl-based HTTP client and endpoint probing.
+- `src/base-view.ts`: custom Obsidian Bases view for published content.
 - `src/payload.ts`: Markdown payload builders.
 - `src/relations.ts`: category/topic resolution/creation and tag normalization.
 - `src/frontmatter.ts`: active file extraction and publish metadata updates.
@@ -224,5 +238,6 @@ Errors are optimized for Obsidian user feedback, not CLI error-code parity.
 - Unpublishing an existing post switches it to draft.
 - Unpublishing an existing note switches it to draft.
 - API key auth publishes content.
-- `Mxspub/mxspub-published.base` is created and filters files with
-  `mxRemoteId`.
+- `Mxspub/mxspub-published.base` is created, filters files with `mxRemoteId`,
+  defaults to the custom Mxspub view, and includes native overview, recent,
+  type-specific, published, and draft table fallback views.
