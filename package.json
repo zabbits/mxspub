@@ -8,6 +8,7 @@
     "build": "tsc --noEmit && node esbuild.config.mjs production && pnpm run check:mobile",
     "check:mobile": "node scripts/check-mobile-safe.mjs",
     "dev": "node esbuild.config.mjs",
+    "test": "node --test tests/*.test.mjs",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

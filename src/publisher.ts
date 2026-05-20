@@ -219,18 +219,15 @@ export class Publisher {
     type: T
   }): Promise<void> {
     const existingId = context.mx.id
-    const created = existingId
-      ? null
+    const document = existingId
+      ? await patchDocument(api, type, existingId, payload)
       : await createDocument(api, type, payload)
-    if (existingId) {
-      await patchDocument(api, type, existingId, payload)
-    }
 
-    const id = existingId ?? created?.id
+    const id = existingId ?? document?.id
     if (!id) throw new UserFacingError('mx-space did not return a document id.')
 
     const now = new Date().toISOString()
-    const slug = documentSlug(created) ?? payload.slug ?? resolveSlug(context)
+    const slug = documentSlug(document) ?? payload.slug ?? resolveSlug(context)
     const publishFrontmatter: Partial<PublishFrontmatter<T>> = {
       title: context.publish.title ?? context.fileBasename,
       ...frontmatter,
@@ -295,22 +292,20 @@ async function patchDocument(
   type: ContentType,
   id: string,
   payload: PublishPayload,
-): Promise<void> {
+): Promise<MxPost | MxNote | MxPage | undefined> {
   if (type === 'post') {
-    await api.request<void>(`/posts/${id}`, {
+    return api.request<MxPost>(`/posts/${id}`, {
       body: payload as MxPostPayload,
       method: 'PATCH',
     })
-    return
   }
   if (type === 'note') {
-    await api.request<void>(`/notes/${id}`, {
+    return api.request<MxNote>(`/notes/${id}`, {
       body: payload as MxNotePayload,
       method: 'PATCH',
     })
-    return
   }
-  await api.request<void>(`/pages/${id}`, {
+  return api.request<MxPage>(`/pages/${id}`, {
     body: payload as MxPagePayload,
     method: 'PATCH',
   })
@@ -326,7 +321,9 @@ async function deleteDocument(
   })
 }
 
-function documentSlug(document: MxPost | MxNote | MxPage | null): string | undefined {
+function documentSlug(
+  document: MxPost | MxNote | MxPage | null | undefined,
+): string | undefined {
   if (!document) return
   return typeof document.slug === 'string' && document.slug.trim()
     ? document.slug
