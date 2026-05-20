@@ -15,8 +15,8 @@ files, stdout/stderr output model, or error codes.
 
 - The primary command is `Mxspub: Publish`.
 - The companion command is `Mxspub: Unpublish`.
-- `Mxspub: Open management` opens a tabbed management view for cached images
-  and the published-content Base entrypoint.
+- `Mxspub: Open management` opens a tabbed management view for cached images;
+  clicking `Published` directly opens the published-content Base.
 - The plugin determines the target content type from `type` in the
   current file's frontmatter.
 - If `type` is missing, the plugin opens a type picker and writes the

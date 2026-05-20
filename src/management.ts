@@ -3,7 +3,7 @@ import {
   WorkspaceLeaf,
 } from 'obsidian'
 
-import { ensurePublishedBaseFile, MXSPUB_BASE_PATH } from './bases'
+import { ensurePublishedBaseFile } from './bases'
 import type {
   ImageUploadCacheEntry,
   MxSpacePublisherSettings,
@@ -79,6 +79,10 @@ export class MxspubManagementView extends ItemView {
     })
     button.toggleClass('is-active', this.activeTab === tab)
     button.addEventListener('click', () => {
+      if (tab === 'published') {
+        void this.openPublishedBase()
+        return
+      }
       this.activeTab = tab
       void this.render()
     })
@@ -131,19 +135,13 @@ export class MxspubManagementView extends ItemView {
   }
 
   private async renderPublished(container: HTMLElement): Promise<void> {
+    await this.openPublishedBase()
+    this.renderEmpty(container, 'Opening published Base view...')
+  }
+
+  private async openPublishedBase(): Promise<void> {
     const baseFile = await ensurePublishedBaseFile(this.app)
-    this.renderSummary(container, [['Base file', MXSPUB_BASE_PATH]])
-    const panel = container.createDiv({ cls: 'mxspub-management-panel' })
-    panel.createEl('p', {
-      text: 'Published content opens in a custom Mxspub Base view with native table fallbacks.',
-    })
-    const button = panel.createEl('button', {
-      cls: 'mod-cta',
-      text: 'Open Published Base',
-    })
-    button.addEventListener('click', () => {
-      void this.app.workspace.getLeaf('tab').openFile(baseFile)
-    })
+    await this.app.workspace.getLeaf('tab').openFile(baseFile)
   }
 
   private renderSummary(

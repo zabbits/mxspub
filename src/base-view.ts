@@ -143,7 +143,7 @@ class MxspubPublishedBaseView extends BasesView {
   private renderEntry(container: HTMLElement, item: PublishedEntry): void {
     const button = container.createEl('button', { cls: 'mxspub-base-entry' })
     button.addEventListener('click', () => {
-      void this.app.workspace.getLeaf(false).openFile(item.entry.file)
+      void this.app.workspace.getLeaf('tab').openFile(item.entry.file)
     })
 
     if (item.title) {

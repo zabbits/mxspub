@@ -79,7 +79,7 @@ same vault.
 Use `Mxspub: Open management` to inspect plugin state:
 
 - `Images`: cached uploaded images, source path, size, last-used time, and URL.
-- `Published`: opens the generated Obsidian Base at
+- `Published`: directly opens the generated Obsidian Base at
   `Mxspub/mxspub-published.base`. The Base defaults to a custom Mxspub view
   grouped by posts, notes, and pages, with native table fallback views.
 
