@@ -89,31 +89,65 @@ class MxspubPublishedBaseView extends BasesView {
   private renderHeader(entries: PublishedEntry[]): void {
     const header = this.containerEl.createDiv({ cls: 'mxspub-base-header' })
     const title = header.createDiv({ cls: 'mxspub-base-title' })
-    title.createEl('span', {
-      cls: 'mxspub-base-kicker',
-      text: 'Mxspub',
-    })
+    title.createEl('span', { cls: 'mxspub-base-kicker', text: 'Mxspub' })
     title.createEl('h3', { text: 'Published content' })
 
     const stats = header.createDiv({ cls: 'mxspub-base-stats' })
-    this.renderStat(stats, 'Total', entries.length)
+    this.renderStat(stats, 'Total', entries.length, 'layers', 'total')
+    this.renderStat(
+      stats,
+      'Posts',
+      entries.filter((entry) => entry.type === 'post').length,
+      'newspaper',
+      'post',
+    )
+    this.renderStat(
+      stats,
+      'Notes',
+      entries.filter((entry) => entry.type === 'note').length,
+      'sticky-note',
+      'note',
+    )
+    this.renderStat(
+      stats,
+      'Pages',
+      entries.filter((entry) => entry.type === 'page').length,
+      'file-text',
+      'page',
+    )
     this.renderStat(
       stats,
       'Published',
       entries.filter((entry) => entry.state === 'publish' || entry.state === 'page')
         .length,
+      'send',
+      'published',
     )
     this.renderStat(
       stats,
       'Unpublished',
       entries.filter((entry) => entry.state === 'unpublished').length,
+      'pencil',
+      'unpublished',
     )
   }
 
-  private renderStat(container: HTMLElement, label: string, value: number): void {
-    const item = container.createDiv({ cls: 'mxspub-base-stat' })
-    item.createEl('span', { text: label })
-    item.createEl('strong', { text: String(value) })
+  private renderStat(
+    container: HTMLElement,
+    label: string,
+    value: number,
+    icon: string,
+    tone: string,
+  ): void {
+    const item = container.createDiv({ cls: `mxspub-base-stat is-${tone}` })
+    const iconEl = item.createEl('span', {
+      attr: { 'aria-hidden': 'true' },
+      cls: 'mxspub-base-stat-icon',
+    })
+    setIcon(iconEl, icon)
+    const copy = item.createDiv({ cls: 'mxspub-base-stat-copy' })
+    copy.createEl('span', { text: label })
+    copy.createEl('strong', { text: String(value) })
   }
 
   private renderSection(
