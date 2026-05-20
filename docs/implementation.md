@@ -15,6 +15,7 @@ files, stdout/stderr output model, or error codes.
 
 - The primary command is `Mxspub: Publish`.
 - The companion command is `Mxspub: Unpublish`.
+- `Mxspub: Delete` deletes the remote document referenced by `remoteId`.
 - `Mxspub: Open management` opens a tabbed management view for cached images;
   clicking `Published` directly opens the published-content Base.
 - The plugin determines the target content type from `type` in the
@@ -26,9 +27,11 @@ files, stdout/stderr output model, or error codes.
 - Local Obsidian image links are uploaded and rewritten in the outgoing payload
   before the remote document is created or updated.
 - `publish` controls whether posts and notes are published. Pages do not
-  write `publish`.
+  write `publish`. If `publish` is absent, posts and notes are published.
 - `Mxspub: Unpublish` explicitly sets the remote post/note publish status to
   false. Pages do not support unpublish.
+- `Mxspub: Delete` calls the mx-space delete API, clears
+  `remoteId` and `published`, and marks posts/notes as `publish: false`.
 
 ## Settings
 
@@ -36,7 +39,6 @@ files, stdout/stderr output model, or error codes.
 - `apiKeySecretId`: optional Obsidian SecretStorage id for an `x-api-key`
   credential.
 - `defaultType`: fallback content type when a file has no `type`.
-- `defaultState`: fallback publish state for posts and notes.
 - `defaultPostCategory`: category used when a post has no top-level
   `category`.
 - `apiBase` and `authBase`: probed endpoint bases cached after connection
@@ -104,6 +106,7 @@ Rules:
 
 - `type` is `post`, `note`, or `page`.
 - `publish` is `true` or `false`; it only applies to posts and notes.
+  Missing `publish` is treated as `true` when publishing.
 - `title` priority is top-level `title`, then file basename. If `title` is
   absent, successful publish writes the file basename back to top-level
   `title`.
@@ -156,11 +159,14 @@ Content:
 - Post create: `POST /posts`
 - Post update: `PATCH /posts/:id`
 - Post unpublish: `PATCH /posts/:id/publish` with `{ "isPublished": false }`
+- Post delete: `DELETE /posts/:id`
 - Note create: `POST /notes`
 - Note update: `PATCH /notes/:id`
 - Note unpublish: `PATCH /notes/:id/publish` with `{ "isPublished": false }`
+- Note delete: `DELETE /notes/:id`
 - Page create: `POST /pages`
 - Page update: `PATCH /pages/:id`
+- Page delete: `DELETE /pages/:id`
 
 Relations:
 
@@ -240,6 +246,7 @@ Errors are optimized for Obsidian user feedback, not CLI error-code parity.
 - Publishing with a missing local image fails without remote write.
 - Unpublishing an existing post writes `publish: false`.
 - Unpublishing an existing note writes `publish: false`.
+- Deleting an existing remote document clears `remoteId` and `published`.
 - API key auth publishes content.
 - `Mxspub/mxspub-published.base` is created, filters files with `remoteId`,
   defaults to the custom Mxspub view, and includes native overview, recent,

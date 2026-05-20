@@ -27,7 +27,6 @@ import type {
   MxSpacePublisherSettings,
   PublishFrontmatter,
   PublishPayload,
-  PublishState,
   PublishStatusPayload,
   PublishStatusResponse,
 } from './types'
@@ -73,10 +72,7 @@ export class Publisher {
       if (type === 'post') {
         const typedContext = withMxType(context, 'post')
         const relations = await relationService.resolveForPost(typedContext)
-        const state = publishStateFromMetadata(
-          typedContext.mx.publish,
-          this.settings.defaultState,
-        )
+        const isPublished = isPublishedFromMetadata(typedContext.mx.publish)
         await this.publishPreparedFile({
           api,
           context: typedContext,
@@ -84,11 +80,11 @@ export class Publisher {
           frontmatter: relations.frontmatter,
           payload: buildPayload({
             context: typedContext,
+            isPublished,
             relations,
-            state,
             type: 'post',
           }),
-          state,
+          isPublished,
           type: 'post',
         })
         return
@@ -97,10 +93,7 @@ export class Publisher {
       if (type === 'note') {
         const typedContext = withMxType(context, 'note')
         const relations = await relationService.resolveForNote(typedContext)
-        const state = publishStateFromMetadata(
-          typedContext.mx.publish,
-          this.settings.defaultState,
-        )
+        const isPublished = isPublishedFromMetadata(typedContext.mx.publish)
         await this.publishPreparedFile({
           api,
           context: typedContext,
@@ -108,11 +101,11 @@ export class Publisher {
           frontmatter: relations.frontmatter,
           payload: buildPayload({
             context: typedContext,
+            isPublished,
             relations,
-            state,
             type: 'note',
           }),
-          state,
+          isPublished,
           type: 'note',
         })
         return
@@ -120,7 +113,6 @@ export class Publisher {
 
       const typedContext = withMxType(context, 'page')
       const relations = await relationService.resolveForPage()
-      const state = this.settings.defaultState
       await this.publishPreparedFile({
         api,
         context: typedContext,
@@ -128,11 +120,11 @@ export class Publisher {
         frontmatter: relations.frontmatter,
         payload: buildPayload({
           context: typedContext,
+          isPublished: true,
           relations,
-          state,
           type: 'page',
         }),
-        state,
+        isPublished: true,
         type: 'page',
       })
     })
@@ -174,6 +166,37 @@ export class Publisher {
     })
   }
 
+  async deleteCurrentFile(): Promise<void> {
+    await this.runWithUserErrors(async () => {
+      const file = this.requireActiveMarkdownFile()
+      const context = await readMarkdownFileContext(this.app, file)
+      const type = context.mx.type
+      const id = context.mx.id
+
+      if (!type) throw new UserFacingError('type is missing.')
+      if (!id) throw new UserFacingError('remoteId is missing.')
+
+      const confirmed = await confirmAction(
+        this.app,
+        'Delete remote content',
+        `Delete this remote ${type}? This cannot be undone.`,
+      )
+      if (!confirmed) return
+
+      await this.ensureEndpoint()
+      const api = this.auth.createApiClient()
+      await deleteDocument(api, type, id)
+
+      await updateMxPublishMetadata(this.app, file, {
+        id: undefined,
+        published: undefined,
+        publish: type === 'page' ? undefined : false,
+      })
+      await ensurePublishedBaseFile(this.app)
+      new Notice(`${typeLabel(type)} deleted.`)
+    })
+  }
+
   private requireActiveMarkdownFile(): TFile {
     const file = getActiveMarkdownFile(this.app)
     if (!file) throw new UserFacingError('Open a Markdown file first.')
@@ -186,7 +209,7 @@ export class Publisher {
     file,
     frontmatter,
     payload,
-    state,
+    isPublished,
     type,
   }: {
     api: ReturnType<AuthService['createApiClient']>
@@ -194,7 +217,7 @@ export class Publisher {
     file: TFile
     frontmatter: Partial<PublishFrontmatter<T>>
     payload: PublishPayload
-    state: PublishState
+    isPublished: boolean
     type: T
   }): Promise<void> {
     const existingId = context.mx.id
@@ -218,7 +241,7 @@ export class Publisher {
       mx: {
         id,
         published: context.mx.published ?? now,
-        publish: type === 'page' ? undefined : state === 'publish',
+        publish: type === 'page' ? undefined : isPublished,
         slug,
         type,
       },
@@ -295,6 +318,16 @@ async function patchDocument(
   })
 }
 
+async function deleteDocument(
+  api: ReturnType<AuthService['createApiClient']>,
+  type: ContentType,
+  id: string,
+): Promise<void> {
+  await api.request<void>(`${endpointFor(type)}/${id}`, {
+    method: 'DELETE',
+  })
+}
+
 function documentSlug(document: MxPost | MxNote | MxPage | null): string | undefined {
   if (!document) return
   return typeof document.slug === 'string' && document.slug.trim()
@@ -308,11 +341,6 @@ function typeLabel(type: ContentType): string {
   return 'Page'
 }
 
-function publishStateFromMetadata(
-  publish: boolean | undefined,
-  fallback: PublishState,
-): PublishState {
-  if (publish === true) return 'publish'
-  if (publish === false) return 'draft'
-  return fallback
+function isPublishedFromMetadata(publish: boolean | undefined): boolean {
+  return publish !== false
 }

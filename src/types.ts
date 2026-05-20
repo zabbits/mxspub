@@ -1,9 +1,6 @@
 export const CONTENT_TYPES = ['post', 'note', 'page'] as const
 export type ContentType = (typeof CONTENT_TYPES)[number]
 
-export const PUBLISH_STATES = ['draft', 'publish'] as const
-export type PublishState = (typeof PUBLISH_STATES)[number]
-
 export type JsonPrimitive = string | number | boolean | null
 export type JsonValue = JsonPrimitive | JsonObject | JsonValue[]
 
@@ -29,7 +26,6 @@ export interface MxSpacePublisherSettings {
   authBase: string
   apiKeySecretId: string
   defaultType: ContentType
-  defaultState: PublishState
   defaultPostCategory: string
   imageUploadCache: ImageUploadCache
 }
@@ -40,7 +36,6 @@ export const DEFAULT_SETTINGS: MxSpacePublisherSettings = {
   authBase: '',
   apiKeySecretId: '',
   defaultType: 'post',
-  defaultState: 'draft',
   defaultPostCategory: 'General',
   imageUploadCache: {},
 }

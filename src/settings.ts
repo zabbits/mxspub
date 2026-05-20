@@ -7,8 +7,8 @@ import {
 } from 'obsidian'
 
 import type { MxSpacePublisherPlugin } from './main'
-import { CONTENT_TYPES, DEFAULT_SETTINGS, PUBLISH_STATES } from './types'
-import type { ContentType, MxSpacePublisherSettings, PublishState } from './types'
+import { CONTENT_TYPES, DEFAULT_SETTINGS } from './types'
+import type { ContentType, MxSpacePublisherSettings } from './types'
 
 export async function loadPluginSettings(
   plugin: MxSpacePublisherPlugin,
@@ -93,18 +93,6 @@ export class MxSpacePublisherSettingTab extends PluginSettingTab {
           .setValue(this.plugin.settings.defaultType)
           .onChange(async (value) => {
             this.plugin.settings.defaultType = value as ContentType
-            await this.plugin.saveSettings()
-          })
-      })
-
-    new Setting(containerEl)
-      .setName('Default publish state')
-      .addDropdown((dropdown) => {
-        for (const state of PUBLISH_STATES) dropdown.addOption(state, state)
-        dropdown
-          .setValue(this.plugin.settings.defaultState)
-          .onChange(async (value) => {
-            this.plugin.settings.defaultState = value as PublishState
             await this.plugin.saveSettings()
           })
       })

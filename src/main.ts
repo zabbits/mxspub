@@ -25,6 +25,8 @@ export default class MxSpacePublisherPlugin extends Plugin {
   private publisher!: Publisher
   private publishActionElements = new Set<HTMLElement>()
   private publishActionViews = new WeakSet<MarkdownView>()
+  private deleteActionElements = new Set<HTMLElement>()
+  private deleteActionViews = new WeakSet<MarkdownView>()
 
   override async onload(): Promise<void> {
     this.settings = await loadPluginSettings(this)
@@ -67,6 +69,14 @@ export default class MxSpacePublisherPlugin extends Plugin {
     })
 
     this.addCommand({
+      id: 'delete-current-file',
+      name: 'Delete',
+      callback: () => {
+        void this.publisher.deleteCurrentFile()
+      },
+    })
+
+    this.addCommand({
       id: 'open-management',
       name: 'Open management',
       callback: () => {
@@ -90,6 +100,8 @@ export default class MxSpacePublisherPlugin extends Plugin {
     this.register(() => {
       for (const element of this.publishActionElements) element.detach()
       this.publishActionElements.clear()
+      for (const element of this.deleteActionElements) element.detach()
+      this.deleteActionElements.clear()
     })
   }
 
@@ -157,15 +169,29 @@ export default class MxSpacePublisherPlugin extends Plugin {
   private registerMarkdownPublishActions(): void {
     for (const leaf of this.app.workspace.getLeavesOfType('markdown')) {
       if (!(leaf.view instanceof MarkdownView)) continue
-      if (this.publishActionViews.has(leaf.view)) continue
 
-      this.publishActionViews.add(leaf.view)
-      const action = leaf.view.addAction('send', 'Publish with Mxspub', () => {
-        this.app.workspace.setActiveLeaf(leaf, { focus: true })
-        void this.publisher.publishCurrentFile()
-      })
-      action.addClass('mxspub-publish-view-action')
-      this.publishActionElements.add(action)
+      if (!this.publishActionViews.has(leaf.view)) {
+        this.publishActionViews.add(leaf.view)
+        const action = leaf.view.addAction('send', 'Publish with Mxspub', () => {
+          this.app.workspace.setActiveLeaf(leaf, { focus: true })
+          void this.publisher.publishCurrentFile()
+        })
+        action.addClass('mxspub-publish-view-action')
+        this.publishActionElements.add(action)
+      }
+
+      if (this.deleteActionViews.has(leaf.view)) continue
+      this.deleteActionViews.add(leaf.view)
+      const deleteAction = leaf.view.addAction(
+        'trash-2',
+        'Delete with Mxspub',
+        () => {
+          this.app.workspace.setActiveLeaf(leaf, { focus: true })
+          void this.publisher.deleteCurrentFile()
+        },
+      )
+      deleteAction.addClass('mxspub-delete-view-action')
+      this.deleteActionElements.add(deleteAction)
     }
   }
 }

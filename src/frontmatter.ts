@@ -7,7 +7,7 @@ import {
   stringifyYaml,
 } from 'obsidian'
 
-import { CONTENT_TYPES, PUBLISH_STATES } from './types'
+import { CONTENT_TYPES } from './types'
 import type {
   ContentType,
   MarkdownFileContext,
@@ -16,7 +16,6 @@ import type {
   PagePublishFrontmatter,
   PostPublishFrontmatter,
   PublishFrontmatter,
-  PublishState,
   YamlObject,
   YamlValue,
 } from './types'
@@ -135,13 +134,6 @@ export function withMxType<T extends ContentType>(
     publish,
     title: resolveContextTitle(publish, context.fileBasename),
   }
-}
-
-export function validPublishState(value: YamlValue | undefined): PublishState | undefined {
-  return typeof value === 'string' &&
-    PUBLISH_STATES.includes(value as PublishState)
-    ? (value as PublishState)
-    : undefined
 }
 
 export function validContentType(value: YamlValue | undefined): ContentType | undefined {

@@ -9,7 +9,6 @@ import type {
   MxPostPayload,
   NotePublishFrontmatter,
   PublishPayload,
-  PublishState,
   RelationInput,
   YamlValue,
 } from './types'
@@ -22,8 +21,8 @@ export interface RelationPayload {
 
 export interface PayloadInput<T extends ContentType = ContentType> {
   context: MarkdownFileContext<T>
+  isPublished: boolean
   type: T
-  state: PublishState
   relations: RelationPayload
 }
 
@@ -68,7 +67,7 @@ function buildPostPayload(input: PayloadInput<'post'>): MxPostPayload {
   const payload: MxPostPayload = {
     ...base,
     categoryId: input.relations.categoryId,
-    isPublished: input.state === 'publish',
+    isPublished: input.isPublished,
     slug: base.slug ?? resolveSlug(input.context),
   }
   if (input.relations.tags?.length) payload.tags = input.relations.tags
@@ -79,7 +78,7 @@ function buildPostPayload(input: PayloadInput<'post'>): MxPostPayload {
 function buildNotePayload(input: PayloadInput<'note'>): MxNotePayload {
   const payload: MxNotePayload = {
     ...buildBasePayload(input),
-    isPublished: input.state === 'publish',
+    isPublished: input.isPublished,
   }
   if (input.relations.topicId) payload.topicId = input.relations.topicId
   copyStringIfPresent(payload, input.context.publish, [

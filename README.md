@@ -11,6 +11,7 @@ for API calls and credentials.
 - Publish the current file to mx-space as a post, note, or page.
 - Update existing remote content when `remoteId` is present.
 - Unpublish posts and notes by marking the remote entry unpublished.
+- Delete previously published remote content from mx-space.
 - Resolve or create missing post categories and note topics.
 - Send Markdown as the source body while also generating a Lexical JSON
   snapshot for mx-core editors.
@@ -51,6 +52,7 @@ summary: "Summary"
 
 Supported `type` values are `post`, `note`, and `page`. `publish` is a boolean
 used for posts and notes; pages do not write `publish`.
+When `publish` is absent, publishing posts and notes sends them as published.
 If `title` is missing, publish uses the file name and writes it back to
 frontmatter.
 `updated` is a user-maintained local timestamp. Mxspub reads it for display but
