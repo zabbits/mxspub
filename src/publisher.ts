@@ -72,7 +72,6 @@ export class Publisher {
       if (type === 'post') {
         const typedContext = withMxType(context, 'post')
         const relations = await relationService.resolveForPost(typedContext)
-        const isPublished = isPublishedFromMetadata(typedContext.mx.publish)
         await this.publishPreparedFile({
           api,
           context: typedContext,
@@ -80,11 +79,11 @@ export class Publisher {
           frontmatter: relations.frontmatter,
           payload: buildPayload({
             context: typedContext,
-            isPublished,
+            isPublished: true,
             relations,
             type: 'post',
           }),
-          isPublished,
+          isPublished: true,
           type: 'post',
         })
         return
@@ -93,7 +92,6 @@ export class Publisher {
       if (type === 'note') {
         const typedContext = withMxType(context, 'note')
         const relations = await relationService.resolveForNote(typedContext)
-        const isPublished = isPublishedFromMetadata(typedContext.mx.publish)
         await this.publishPreparedFile({
           api,
           context: typedContext,
@@ -101,11 +99,11 @@ export class Publisher {
           frontmatter: relations.frontmatter,
           payload: buildPayload({
             context: typedContext,
-            isPublished,
+            isPublished: true,
             relations,
             type: 'note',
           }),
-          isPublished,
+          isPublished: true,
           type: 'note',
         })
         return
@@ -339,8 +337,4 @@ function typeLabel(type: ContentType): string {
   if (type === 'post') return 'Post'
   if (type === 'note') return 'Note'
   return 'Page'
-}
-
-function isPublishedFromMetadata(publish: boolean | undefined): boolean {
-  return publish !== false
 }

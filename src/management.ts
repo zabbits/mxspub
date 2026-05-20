@@ -1,6 +1,8 @@
 import {
   ItemView,
+  TFile,
   WorkspaceLeaf,
+  setIcon,
 } from 'obsidian'
 
 import { ensurePublishedBaseFile } from './bases'
@@ -106,32 +108,74 @@ export class MxspubManagementView extends ItemView {
       return
     }
 
-    const table = this.createTable(container, [
-      'Preview',
-      'Name',
-      'Source',
-      'Size',
-      'Last used',
-      'URL',
-    ])
-    const tbody = table.createEl('tbody')
-    for (const [hash, row] of rows) {
-      const tr = tbody.createEl('tr')
-      const preview = tr.createEl('td')
-      preview.createEl('img', {
-        attr: { alt: row.name, src: row.url },
-        cls: 'mxspub-management-image-preview',
-      })
-      tr.createEl('td', { text: row.name || shortHash(hash) })
-      tr.createEl('td', { text: row.sourcePath || '-' })
-      tr.createEl('td', { text: formatBytes(row.byteSize) })
-      tr.createEl('td', { text: formatDate(row.lastUsedAt) })
-      const url = tr.createEl('td')
-      url.createEl('a', {
-        attr: { href: row.url },
-        text: row.url,
-      })
+    const grid = container.createDiv({ cls: 'mxspub-management-image-list' })
+    for (const [, row] of rows) {
+      this.renderImageCard(grid, row)
     }
+  }
+
+  private renderImageCard(
+    container: HTMLElement,
+    row: ImageUploadCacheEntry,
+  ): void {
+    const card = container.createDiv({ cls: 'mxspub-management-image-card' })
+    const media = card.createEl('button', {
+      cls: 'mxspub-management-image-media',
+      attr: { 'aria-label': `Open ${row.sourcePath || row.name}` },
+    })
+    media.addEventListener('click', () => {
+      this.openSourceFile(row.sourcePath)
+    })
+    media.createEl('img', {
+      attr: { alt: row.name, src: row.url },
+      cls: 'mxspub-management-image-preview',
+    })
+    const body = card.createDiv({ cls: 'mxspub-management-image-body' })
+    body.createEl('strong', {
+      cls: 'mxspub-management-image-title',
+      text: row.sourcePath || row.name || row.url,
+    })
+    const details = body.createDiv({ cls: 'mxspub-management-image-details' })
+    this.renderImageUrl(details, row.url)
+    this.renderImageDetail(details, 'Size', formatBytes(row.byteSize), 'size')
+  }
+
+  private renderImageDetail(
+    container: HTMLElement,
+    label: string,
+    value: string,
+    tone: string,
+  ): void {
+    if (!value || value === '-') return
+    const detail = container.createDiv({
+      cls: `mxspub-management-image-detail is-${tone}`,
+    })
+    detail.createEl('span', { text: label })
+    detail.createEl('strong', { text: value })
+  }
+
+  private renderImageUrl(container: HTMLElement, url: string): void {
+    if (!url) return
+    const detail = container.createDiv({
+      cls: 'mxspub-management-image-detail is-url',
+    })
+    detail.createEl('span', { text: 'URL' })
+    const link = detail.createEl('a', {
+      attr: { href: url },
+      text: url,
+    })
+    const icon = detail.createEl('span', {
+      attr: { 'aria-hidden': 'true' },
+      cls: 'mxspub-management-image-link-icon',
+    })
+    setIcon(icon, 'external-link')
+    link.appendChild(icon)
+  }
+
+  private openSourceFile(sourcePath: string): void {
+    const file = this.app.vault.getAbstractFileByPath(sourcePath)
+    if (!(file instanceof TFile)) return
+    void this.app.workspace.getLeaf('tab').openFile(file)
   }
 
   private async renderPublished(container: HTMLElement): Promise<void> {
@@ -160,23 +204,6 @@ export class MxspubManagementView extends ItemView {
     container.createDiv({ cls: 'mxspub-management-empty', text: message })
   }
 
-  private createTable(container: HTMLElement, headers: string[]): HTMLTableElement {
-    const table = container.createEl('table', {
-      cls: 'mxspub-management-table',
-    })
-    const thead = table.createEl('thead')
-    const tr = thead.createEl('tr')
-    for (const header of headers) tr.createEl('th', { text: header })
-    return table
-  }
-
-}
-
-function formatDate(value: string | undefined): string {
-  if (!value) return '-'
-  const date = new Date(value)
-  if (Number.isNaN(date.valueOf())) return value
-  return date.toLocaleString()
 }
 
 function compareDateDesc(a: string | undefined, b: string | undefined): number {
@@ -199,8 +226,4 @@ function formatBytes(bytes: number): string {
     unit++
   }
   return `${value.toFixed(unit === 0 ? 0 : 1)} ${units[unit]}`
-}
-
-function shortHash(hash: string): string {
-  return hash.replace(/^sha256:/, '').slice(0, 12)
 }
