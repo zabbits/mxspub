@@ -9,7 +9,7 @@ for API calls and credentials.
 ## Features
 
 - Publish the current file to mx-space as a post, note, or page.
-- Update existing remote content when `mxspace.id` is present.
+- Update existing remote content when `mxRemoteId` is present.
 - Unpublish posts and notes by switching the remote entry back to draft.
 - Resolve or create missing post categories and note topics.
 - Send Markdown as the source body while also generating a Lexical JSON
@@ -22,15 +22,15 @@ for API calls and credentials.
 
 ## Frontmatter
 
-Common publish metadata lives under `mxspace`:
+Publish metadata lives in flat frontmatter fields:
 
 ```yaml
-mxspace:
-  type: post
-  id: "1234567890"
-  slug: "example"
-  state: draft
-  lastPublishedAt: "2026-05-18T12:00:00.000Z"
+mxType: post
+mxRemoteId: "1234567890"
+mxState: publish
+slug: "example"
+mxPublishedAt: "2026-05-18T12:00:00.000Z"
+updated: "2026-05-18T12:00:00.000Z"
 ```
 
 Type-specific fields stay at the top level:
@@ -41,14 +41,13 @@ created: "2026-05-01T09:00:00.000Z"
 category: "tech"
 tags: ["obsidian", "mx-space"]
 summary: "Summary"
-mxspace:
-  type: post
-  state: draft
+mxType: post
+mxState: publish
+slug: example
 ```
 
-Supported `mxspace.type` values are `post`, `note`, and `page`. Supported
-`mxspace.state` values are `draft` and `publish`; state only applies to posts
-and notes.
+Supported `mxType` values are `post`, `note`, and `page`. Supported `mxState`
+values are `draft` and `publish`; state is only written for posts and notes.
 
 ## Images
 
@@ -73,7 +72,8 @@ same vault.
 Use `Mxspub: Open management` to inspect plugin state:
 
 - `Images`: cached uploaded images, source path, size, last-used time, and URL.
-- `Published`: Markdown files with `mxspace.id`, grouped from vault metadata.
+- `Published`: opens the generated Obsidian Base at
+  `Mxspub/mxspub-published.base`.
 
 ## Development
 

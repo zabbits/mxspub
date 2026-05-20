@@ -75,6 +75,17 @@
   padding: 24px 0;
 }
 
+.mxspub-management-panel {
+  background: var(--background-secondary);
+  border-radius: 6px;
+  padding: 16px;
+}
+
+.mxspub-management-panel p {
+  color: var(--text-muted);
+  margin-top: 0;
+}
+
 .mxspub-management-table {
   border-collapse: collapse;
   font-size: var(--font-ui-small);

@@ -1,32 +1,17 @@
 import {
   ItemView,
-  TFile,
   WorkspaceLeaf,
-  getFrontMatterInfo,
-  parseYaml,
 } from 'obsidian'
 
+import { ensurePublishedBaseFile, MXSPUB_BASE_PATH } from './bases'
 import type {
-  ContentType,
   ImageUploadCacheEntry,
   MxSpacePublisherSettings,
-  YamlObject,
-  YamlValue,
 } from './types'
 
 export const MXSPUB_MANAGEMENT_VIEW = 'mxspub-management'
 
 type ManagementTab = 'images' | 'published'
-
-interface PublishedContentRow {
-  file: TFile
-  id: string
-  lastPublishedAt?: string
-  slug?: string
-  state?: string
-  title: string
-  type: ContentType
-}
 
 export class MxspubManagementView extends ItemView {
   private activeTab: ManagementTab = 'images'
@@ -141,46 +126,19 @@ export class MxspubManagementView extends ItemView {
   }
 
   private async renderPublished(container: HTMLElement): Promise<void> {
-    const rows = await this.collectPublishedContent()
-    this.renderSummary(container, [
-      ['Published', String(rows.length)],
-      ['Posts', String(rows.filter((row) => row.type === 'post').length)],
-      ['Notes', String(rows.filter((row) => row.type === 'note').length)],
-      ['Pages', String(rows.filter((row) => row.type === 'page').length)],
-    ])
-
-    if (rows.length === 0) {
-      this.renderEmpty(container, 'No published content metadata found.')
-      return
-    }
-
-    const table = this.createTable(container, [
-      'Title',
-      'Type',
-      'State',
-      'Slug',
-      'Remote ID',
-      'Last published',
-      'File',
-    ])
-    const tbody = table.createEl('tbody')
-    for (const row of rows) {
-      const tr = tbody.createEl('tr')
-      tr.createEl('td', { text: row.title })
-      tr.createEl('td', { text: row.type })
-      tr.createEl('td', { text: row.state || '-' })
-      tr.createEl('td', { text: row.slug || '-' })
-      tr.createEl('td', { text: row.id })
-      tr.createEl('td', { text: formatDate(row.lastPublishedAt) })
-      const fileCell = tr.createEl('td')
-      const fileLink = fileCell.createEl('button', {
-        cls: 'mxspub-management-link-button',
-        text: row.file.path,
-      })
-      fileLink.addEventListener('click', () => {
-        void this.app.workspace.getLeaf(false).openFile(row.file)
-      })
-    }
+    const baseFile = await ensurePublishedBaseFile(this.app)
+    this.renderSummary(container, [['Base file', MXSPUB_BASE_PATH]])
+    const panel = container.createDiv({ cls: 'mxspub-management-panel' })
+    panel.createEl('p', {
+      text: 'Published content is tracked by flat mx frontmatter fields and displayed with Obsidian Bases.',
+    })
+    const button = panel.createEl('button', {
+      cls: 'mod-cta',
+      text: 'Open Base',
+    })
+    button.addEventListener('click', () => {
+      void this.app.workspace.getLeaf('tab').openFile(baseFile)
+    })
   }
 
   private renderSummary(
@@ -209,51 +167,6 @@ export class MxspubManagementView extends ItemView {
     return table
   }
 
-  private async collectPublishedContent(): Promise<PublishedContentRow[]> {
-    const rows: PublishedContentRow[] = []
-    for (const file of this.app.vault.getMarkdownFiles()) {
-      const source = await this.app.vault.cachedRead(file)
-      const info = getFrontMatterInfo(source)
-      if (!info.exists) continue
-      const frontmatter = parseFrontmatter(info.frontmatter)
-      const mxspace = frontmatter.mxspace
-      if (!isYamlObject(mxspace)) continue
-      const id = stringValue(mxspace.id)
-      const type = contentTypeValue(mxspace.type)
-      if (!id || !type) continue
-      rows.push({
-        file,
-        id,
-        lastPublishedAt: stringValue(mxspace.lastPublishedAt),
-        slug: stringValue(mxspace.slug),
-        state: stringValue(mxspace.state),
-        title: stringValue(frontmatter.title) || file.basename,
-        type,
-      })
-    }
-    return rows.sort((a, b) =>
-      compareDateDesc(a.lastPublishedAt, b.lastPublishedAt),
-    )
-  }
-}
-
-function parseFrontmatter(source: string): YamlObject {
-  const parsed = source.trim() ? (parseYaml(source) as YamlValue) : {}
-  return isYamlObject(parsed) ? parsed : {}
-}
-
-function contentTypeValue(value: YamlValue | undefined): ContentType | undefined {
-  return value === 'post' || value === 'note' || value === 'page'
-    ? value
-    : undefined
-}
-
-function stringValue(value: YamlValue | undefined): string | undefined {
-  return typeof value === 'string' && value.trim() ? value.trim() : undefined
-}
-
-function isYamlObject(value: YamlValue | undefined): value is YamlObject {
-  return Boolean(value && typeof value === 'object' && !Array.isArray(value))
 }
 
 function formatDate(value: string | undefined): string {

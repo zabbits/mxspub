@@ -15,8 +15,8 @@ mx-space.
 
 - Use Obsidian APIs such as `requestUrl` and `SecretStorage` for runtime work.
 - Treat `main.js` and source maps as generated build artifacts.
-- Keep publish metadata under `mxspace`; keep post/note/page-specific metadata
-  at the top level of frontmatter.
+- Keep agent notes focused on repository workflow. Put feature behavior,
+  implementation contracts, and acceptance criteria in project documentation.
 
 ## Documentation
 

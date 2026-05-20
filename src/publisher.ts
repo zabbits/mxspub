@@ -1,14 +1,15 @@
 import { App, Notice, TFile } from 'obsidian'
 
 import type { AuthService } from './auth'
+import { ensurePublishedBaseFile } from './bases'
 import { UserFacingError } from './api'
 import {
   getActiveMarkdownFile,
   readMarkdownFileContext,
   showError,
-  updateMxspaceFrontmatter,
+  updateMxPublishMetadata,
   updatePublishFrontmatter,
-  withMxspaceType,
+  withMxType,
 } from './frontmatter'
 import { confirmAction, pickContentType } from './modals'
 import { ImageUploadService } from './images'
@@ -46,13 +47,13 @@ export class Publisher {
     await this.runWithUserErrors(async () => {
       const file = this.requireActiveMarkdownFile()
       let context = await readMarkdownFileContext(this.app, file)
-      let type = context.mxspace.type
+      let type = context.mx.type
 
       if (!type) {
         const picked = await pickContentType(this.app, this.settings.defaultType)
         if (!picked) return
         type = picked
-        context = withMxspaceType(context, type)
+        context = withMxType(context, type)
       }
 
       await this.ensureEndpoint()
@@ -70,9 +71,9 @@ export class Publisher {
       context = await imageUploadService.prepareContext(context, file)
       const relationService = new RelationService(api, this.settings)
       if (type === 'post') {
-        const typedContext = withMxspaceType(context, 'post')
+        const typedContext = withMxType(context, 'post')
         const relations = await relationService.resolveForPost(typedContext)
-        const state = typedContext.mxspace.state ?? this.settings.defaultState
+        const state = typedContext.mx.state ?? this.settings.defaultState
         await this.publishPreparedFile({
           api,
           context: typedContext,
@@ -91,9 +92,9 @@ export class Publisher {
       }
 
       if (type === 'note') {
-        const typedContext = withMxspaceType(context, 'note')
+        const typedContext = withMxType(context, 'note')
         const relations = await relationService.resolveForNote(typedContext)
-        const state = typedContext.mxspace.state ?? this.settings.defaultState
+        const state = typedContext.mx.state ?? this.settings.defaultState
         await this.publishPreparedFile({
           api,
           context: typedContext,
@@ -111,9 +112,9 @@ export class Publisher {
         return
       }
 
-      const typedContext = withMxspaceType(context, 'page')
+      const typedContext = withMxType(context, 'page')
       const relations = await relationService.resolveForPage()
-      const state = typedContext.mxspace.state ?? this.settings.defaultState
+      const state = typedContext.mx.state ?? this.settings.defaultState
       await this.publishPreparedFile({
         api,
         context: typedContext,
@@ -135,14 +136,14 @@ export class Publisher {
     await this.runWithUserErrors(async () => {
       const file = this.requireActiveMarkdownFile()
       const context = await readMarkdownFileContext(this.app, file)
-      const type = context.mxspace.type
-      const id = context.mxspace.id
+      const type = context.mx.type
+      const id = context.mx.id
 
-      if (!type) throw new UserFacingError('mxspace.type is missing.')
+      if (!type) throw new UserFacingError('mxType is missing.')
       if (type === 'page') {
         throw new UserFacingError('Pages do not support unpublish.')
       }
-      if (!id) throw new UserFacingError('mxspace.id is missing.')
+      if (!id) throw new UserFacingError('mxRemoteId is missing.')
 
       const confirmed = await confirmAction(
         this.app,
@@ -159,9 +160,11 @@ export class Publisher {
         method: 'PATCH',
       })
 
-      await updateMxspaceFrontmatter(this.app, file, {
+      await updateMxPublishMetadata(this.app, file, {
         state: 'draft',
+        updated: new Date().toISOString(),
       })
+      await ensurePublishedBaseFile(this.app)
       new Notice(`${typeLabel(type)} unpublished.`)
     })
   }
@@ -189,7 +192,7 @@ export class Publisher {
     state: PublishState
     type: T
   }): Promise<void> {
-    const existingId = context.mxspace.id
+    const existingId = context.mx.id
     const created = existingId
       ? null
       : await createDocument(api, type, payload)
@@ -200,17 +203,20 @@ export class Publisher {
     const id = existingId ?? created?.id
     if (!id) throw new UserFacingError('mx-space did not return a document id.')
 
+    const now = new Date().toISOString()
     const slug = documentSlug(created) ?? payload.slug ?? resolveSlug(context)
     await updatePublishFrontmatter(this.app, file, {
-      mxspace: {
+      mx: {
         id,
-        lastPublishedAt: new Date().toISOString(),
+        publishedAt: context.mx.publishedAt ?? now,
         slug,
-        state: type === 'page' ? context.mxspace.state : state,
+        state: type === 'page' ? undefined : state,
         type,
+        updated: now,
       },
       publish: frontmatter,
     })
+    await ensurePublishedBaseFile(this.app)
 
     new Notice(
       `${typeLabel(type)} ${existingId ? 'updated' : 'published'}: ${slug}`,

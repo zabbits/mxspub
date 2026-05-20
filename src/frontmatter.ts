@@ -11,7 +11,7 @@ import { CONTENT_TYPES, PUBLISH_STATES } from './types'
 import type {
   ContentType,
   MarkdownFileContext,
-  MxSpaceFrontmatter,
+  MxPublishMetadata,
   NotePublishFrontmatter,
   PagePublishFrontmatter,
   PostPublishFrontmatter,
@@ -36,8 +36,8 @@ export async function readMarkdownFileContext(
   const frontmatter = info.exists
     ? parseFrontmatter(info.frontmatter)
     : {}
-  const mxspace = normalizeMxspace(frontmatter.mxspace)
-  const type = mxspace.type ?? 'post'
+  const mx = normalizeMxPublishMetadata(frontmatter)
+  const type = mx.type ?? 'post'
   const publish = normalizePublishFrontmatter(type, frontmatter)
   const body = info.exists ? source.slice(info.contentStart) : source
 
@@ -45,14 +45,14 @@ export async function readMarkdownFileContext(
     body: body.replace(/^\r?\n/, ''),
     fileBasename: file.basename,
     frontmatter,
-    mxspace,
+    mx,
     publish,
     title: resolveContextTitle(publish, file.basename),
   }
 }
 
 export interface PublishFrontmatterPatch<T extends ContentType = ContentType> {
-  mxspace?: Partial<MxSpaceFrontmatter>
+  mx?: Partial<MxPublishMetadata>
   publish?: Partial<PublishFrontmatter<T>>
 }
 
@@ -66,11 +66,7 @@ export async function updatePublishFrontmatter<T extends ContentType>(
     const frontmatter = info.exists
       ? parseFrontmatter(info.frontmatter)
       : {}
-    const current = normalizeMxspace(frontmatter.mxspace)
-    frontmatter.mxspace = removeEmptyMxspaceValues({
-      ...current,
-      ...(patch.mxspace ?? {}),
-    })
+    if (patch.mx) applyMxPublishPatch(frontmatter, patch.mx)
     if (patch.publish) applyRootPatch(frontmatter, patch.publish)
     const yaml = formatFrontmatterYaml(frontmatter)
 
@@ -82,39 +78,39 @@ export async function updatePublishFrontmatter<T extends ContentType>(
   })
 }
 
-export function updateMxspaceFrontmatter(
+export function updateMxPublishMetadata(
   app: App,
   file: TFile,
-  patch: Partial<MxSpaceFrontmatter>,
+  patch: Partial<MxPublishMetadata>,
 ): Promise<void> {
-  return updatePublishFrontmatter(app, file, { mxspace: patch })
+  return updatePublishFrontmatter(app, file, { mx: patch })
 }
 
-export function withMxspaceType(
+export function withMxType(
   context: MarkdownFileContext,
   type: 'post',
 ): MarkdownFileContext<'post'>
-export function withMxspaceType(
+export function withMxType(
   context: MarkdownFileContext,
   type: 'note',
 ): MarkdownFileContext<'note'>
-export function withMxspaceType(
+export function withMxType(
   context: MarkdownFileContext,
   type: 'page',
 ): MarkdownFileContext<'page'>
-export function withMxspaceType(
+export function withMxType(
   context: MarkdownFileContext,
   type: ContentType,
 ): MarkdownFileContext
-export function withMxspaceType<T extends ContentType>(
+export function withMxType<T extends ContentType>(
   context: MarkdownFileContext,
   type: T,
 ): MarkdownFileContext<T> {
-  if (context.mxspace.type === type) return context as MarkdownFileContext<T>
+  if (context.mx.type === type) return context as MarkdownFileContext<T>
   const publish = normalizePublishFrontmatter(type, context.frontmatter)
   return {
     ...context,
-    mxspace: { ...context.mxspace, type },
+    mx: { ...context.mx, type },
     publish,
     title: resolveContextTitle(publish, context.fileBasename),
   }
@@ -143,14 +139,14 @@ function parseFrontmatter(source: string): YamlObject {
   return isYamlObject(parsed) ? parsed : {}
 }
 
-function normalizeMxspace(value: YamlValue | undefined): MxSpaceFrontmatter {
-  if (!isYamlObject(value)) return {}
+function normalizeMxPublishMetadata(value: YamlObject): MxPublishMetadata {
   return {
-    id: stringValue(value.id),
-    lastPublishedAt: stringValue(value.lastPublishedAt),
+    id: stringValue(value.mxRemoteId),
+    publishedAt: stringValue(value.mxPublishedAt),
     slug: stringValue(value.slug),
-    state: validPublishState(value.state),
-    type: validContentType(value.type),
+    state: validPublishState(value.mxState),
+    type: validContentType(value.mxType),
+    updated: stringValue(value.updated),
   }
 }
 
@@ -203,7 +199,7 @@ function normalizePublishFrontmatter<T extends ContentType>(
 function normalizeBaseFrontmatter(value: YamlObject) {
   return {
     created: stringValue(value.created) || stringValue(value.createdAt),
-    mxspace: normalizeMxspace(value.mxspace),
+    slug: stringValue(value.slug),
     title: stringValue(value.title),
   }
 }
@@ -245,17 +241,18 @@ function numberValue(value: YamlValue | undefined): number | undefined {
   return Number.isFinite(n) ? n : undefined
 }
 
-function removeEmptyMxspaceValues(
-  value: Partial<MxSpaceFrontmatter>,
-): Partial<MxSpaceFrontmatter> {
-  const next: Partial<MxSpaceFrontmatter> = {}
-  for (const key of Object.keys(value) as Array<keyof MxSpaceFrontmatter>) {
-    const item = value[key]
-    if (item === undefined || item === null || item === '') continue
-    if (Array.isArray(item) && item.length === 0) continue
-    ;(next as YamlObject)[key] = item as YamlValue
-  }
-  return next
+function applyMxPublishPatch(
+  frontmatter: YamlObject,
+  patch: Partial<MxPublishMetadata>,
+): void {
+  const rootPatch: YamlObject = {}
+  if ('publishedAt' in patch) rootPatch.mxPublishedAt = patch.publishedAt
+  if ('id' in patch) rootPatch.mxRemoteId = patch.id
+  if ('state' in patch) rootPatch.mxState = patch.state
+  if ('type' in patch) rootPatch.mxType = patch.type
+  if ('slug' in patch) rootPatch.slug = patch.slug
+  if ('updated' in patch) rootPatch.updated = patch.updated
+  applyRootPatch(frontmatter, rootPatch as Partial<PublishFrontmatter<ContentType>>)
 }
 
 function applyRootPatch(
@@ -263,7 +260,6 @@ function applyRootPatch(
   patch: Partial<PublishFrontmatter<ContentType>>,
 ): void {
   for (const [key, item] of Object.entries(patch)) {
-    if (key === 'mxspace') continue
     if (item === undefined || item === null || item === '') {
       delete frontmatter[key]
       continue
@@ -277,32 +273,15 @@ function applyRootPatch(
 }
 
 function formatFrontmatterYaml(frontmatter: YamlObject): string {
-  const { mxspace, ...rest } = frontmatter
   const sections: string[] = []
 
-  const cleanedRest = removeUndefinedDeep(rest)
+  const cleanedRest = removeUndefinedDeep(frontmatter)
   if (hasEnumerableValues(cleanedRest)) {
     const restYaml = stringifyYaml(cleanedRest).trim()
     if (restYaml && restYaml !== '{}') sections.push(restYaml)
   }
 
-  if (isYamlObject(mxspace)) {
-    sections.push(formatMxspaceYaml(mxspace))
-  }
-
   return `${sections.join('\n')}\n`
-}
-
-function formatMxspaceYaml(mxspace: YamlObject): string {
-  const cleaned = removeUndefinedDeep(mxspace)
-  if (!hasEnumerableValues(cleaned)) return 'mxspace: {}'
-
-  const body = stringifyYaml(cleaned)
-    .trim()
-    .split(/\r?\n/)
-    .map((line) => `  ${line}`)
-    .join('\n')
-  return body ? `mxspace:\n${body}` : 'mxspace: {}'
 }
 
 function removeUndefinedDeep(value: YamlValue | undefined): YamlValue | undefined {

@@ -74,18 +74,19 @@ export interface RelationInputObject extends JsonObject {
 
 export type RelationInput = string | RelationInputObject
 
-export interface MxSpaceFrontmatter extends JsonObject {
+export interface MxPublishMetadata extends JsonObject {
   type?: ContentType
   id?: string
   slug?: string
   state?: PublishState
-  lastPublishedAt?: string
+  publishedAt?: string
+  updated?: string
 }
 
 export interface BasePublishFrontmatter extends JsonObject {
   created?: string
+  slug?: string
   title?: string
-  mxspace?: MxSpaceFrontmatter
 }
 
 export interface PostPublishFrontmatter extends BasePublishFrontmatter {
@@ -119,7 +120,7 @@ export type PublishFrontmatter<T extends ContentType> =
 export interface MarkdownFileContext<T extends ContentType = ContentType> {
   body: string
   frontmatter: YamlObject
-  mxspace: MxSpaceFrontmatter
+  mx: MxPublishMetadata
   publish: PublishFrontmatter<T>
   title: string
   fileBasename: string

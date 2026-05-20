@@ -46,7 +46,7 @@ export function resolveTitle(context: MarkdownFileContext): string {
 }
 
 export function resolveSlug(context: MarkdownFileContext): string {
-  return stringValue(context.mxspace.slug) || makeSlug(context.fileBasename)
+  return stringValue(context.publish.slug) || makeSlug(context.fileBasename)
 }
 
 function buildBasePayload(input: PayloadInput): BaseWritePayload {
@@ -88,7 +88,6 @@ function buildNotePayload(input: PayloadInput<'note'>): MxNotePayload {
     'publicAt',
     'location',
   ])
-  if (!input.context.mxspace.slug) delete payload.slug
   return payload
 }
 
