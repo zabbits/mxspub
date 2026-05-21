@@ -14,3 +14,9 @@
   as indented code blocks.
 - [x] Fenced code parsing should only close a fence when the closing fence is
   followed by trailing spaces, not an info string or other content.
+- [x] Inline code parsing should not pair stray backticks across Markdown
+  blocks and hide valid images between paragraphs.
+- [x] Image reference parsing should ignore fenced code blocks nested in common
+  Markdown containers such as block quotes and list items.
+- [x] Fallback image scanners should use source text offsets instead of
+  mdast-decoded text offsets.

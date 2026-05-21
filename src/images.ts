@@ -1,4 +1,5 @@
 import { App, TFile, normalizePath } from 'obsidian'
+import { fromMarkdown } from 'mdast-util-from-markdown'
 
 import type { AuthService } from './auth'
 import { UserFacingError } from './api'
@@ -26,9 +27,16 @@ interface ImageReference {
   type: 'markdown' | 'wiki'
 }
 
-interface SourceRange {
-  start: number
-  end: number
+interface MarkdownAstNode {
+  alt?: string | null
+  children?: MarkdownAstNode[]
+  position?: {
+    start?: { offset?: number }
+    end?: { offset?: number }
+  }
+  type: string
+  url?: string
+  value?: string
 }
 
 export class ImageUploadService {
@@ -123,72 +131,43 @@ export class ImageUploadService {
 }
 
 function collectImageReferences(markdown: string): ImageReference[] {
-  const ignoredRanges = collectIgnoredMarkdownRanges(markdown)
-  return [
-    ...collectMarkdownImages(markdown, ignoredRanges),
-    ...collectWikiImageEmbeds(markdown, ignoredRanges),
-  ].sort((a, b) => a.start - b.start)
+  const references: ImageReference[] = []
+  visitMarkdownAst(fromMarkdown(markdown) as MarkdownAstNode, (node) => {
+    if (node.type === 'image') {
+      const range = nodeRange(node)
+      if (!range || !node.url) return
+      references.push({
+        alt: node.alt ?? '',
+        end: range.end,
+        rawTarget: node.url,
+        start: range.start,
+        type: 'markdown',
+      })
+      return
+    }
+
+    if (node.type !== 'text') return
+    const range = nodeRange(node)
+    if (!range) return
+    const source = markdown.slice(range.start, range.end)
+    references.push(
+      ...collectMarkdownImageTextFallbacks(source, range.start),
+      ...collectWikiImageEmbeds(source, range.start),
+    )
+  })
+  return references.sort((a, b) => a.start - b.start)
 }
 
 export function collectImageReferencesForTest(markdown: string): ImageReference[] {
   return collectImageReferences(markdown)
 }
 
-function collectMarkdownImages(
-  markdown: string,
-  ignoredRanges: SourceRange[],
-): ImageReference[] {
-  const references: ImageReference[] = []
-  let index = 0
-
-  while (index < markdown.length) {
-    const start = markdown.indexOf('![', index)
-    if (start < 0) break
-    if (isIgnoredRange(start, start + 2, ignoredRanges)) {
-      index = start + 2
-      continue
-    }
-
-    const altEnd = findClosingBracket(markdown, start + 2)
-    if (altEnd < 0 || markdown[altEnd + 1] !== '(') {
-      index = start + 2
-      continue
-    }
-
-    const destination = parseMarkdownDestination(markdown, altEnd + 1)
-    if (!destination) {
-      index = start + 2
-      continue
-    }
-
-    const rawTarget = normalizeMarkdownDestination(destination.value)
-    if (!rawTarget) {
-      index = destination.end
-      continue
-    }
-    references.push({
-      alt: markdown.slice(start + 2, altEnd).replace(/\\]/g, ']').trim(),
-      end: destination.end,
-      rawTarget,
-      start,
-      type: 'markdown',
-    })
-    index = destination.end
-  }
-
-  return references
-}
-
-function collectWikiImageEmbeds(
-  markdown: string,
-  ignoredRanges: SourceRange[],
-): ImageReference[] {
+function collectWikiImageEmbeds(text: string, offset: number): ImageReference[] {
   const references: ImageReference[] = []
   const pattern = /!\[\[([^\]]+)\]\]/g
-  for (const match of markdown.matchAll(pattern)) {
-    const start = match.index
-    const end = match.index + match[0].length
-    if (isIgnoredRange(start, end, ignoredRanges)) continue
+  for (const match of text.matchAll(pattern)) {
+    const start = offset + match.index
+    const end = start + match[0].length
     const parts = match[1].split('|').map((part) => part.trim())
     const rawTarget = parts[0]
     if (!rawTarget) continue
@@ -203,134 +182,46 @@ function collectWikiImageEmbeds(
   return references
 }
 
-function collectIgnoredMarkdownRanges(markdown: string): SourceRange[] {
-  const ranges = collectBlockCodeRanges(markdown)
-  ranges.push(...collectInlineCodeRanges(markdown, ranges))
-  return ranges.sort((a, b) => a.start - b.start)
-}
-
-function collectBlockCodeRanges(markdown: string): SourceRange[] {
-  const ranges: SourceRange[] = []
-  let index = 0
-  let fence: { marker: string; length: number } | null = null
-  let listContentIndent: number | null = null
-
-  while (index < markdown.length) {
-    const lineEnd = markdown.indexOf('\n', index)
-    const end = lineEnd < 0 ? markdown.length : lineEnd + 1
-    const line = markdown.slice(index, lineEnd < 0 ? markdown.length : lineEnd)
-    const fenceOpenMatch = line.match(/^ {0,3}(`{3,}|~{3,})/)
-
-    if (fence) {
-      ranges.push({ end, start: index })
-      if (isClosingFence(line, fence)) fence = null
-    } else if (fenceOpenMatch) {
-      const run = fenceOpenMatch[1]
-      fence = { length: run.length, marker: run[0] }
-      ranges.push({ end, start: index })
-    } else if (isIndentedCodeLine(line, listContentIndent)) {
-      ranges.push({ end, start: index })
-    }
-
-    listContentIndent = nextListContentIndent(line, listContentIndent)
-    index = end
-  }
-
-  return ranges
-}
-
-function isClosingFence(
-  line: string,
-  fence: { marker: string; length: number },
-): boolean {
-  const escapedMarker = fence.marker === '`' ? '`' : '~'
-  const pattern = new RegExp(`^ {0,3}${escapedMarker}{${fence.length},}[ \\t]*$`)
-  return pattern.test(line)
-}
-
-function isIndentedCodeLine(
-  line: string,
-  listContentIndent: number | null,
-): boolean {
-  if (!/^(?: {4}|\t)/.test(line)) return false
-  const indent = lineIndent(line)
-  if (listContentIndent === null) return true
-  return indent >= listContentIndent + 4
-}
-
-function nextListContentIndent(
-  line: string,
-  current: number | null,
-): number | null {
-  if (!line.trim()) return current
-
-  const match = line.match(/^(\s{0,3})(?:[-+*]|\d+[.)])(\s+)/)
-  if (match?.index === 0) {
-    return match[0].length
-  }
-
-  if (current !== null && lineIndent(line) >= current) return current
-  return null
-}
-
-function lineIndent(line: string): number {
-  let indent = 0
-  for (const char of line) {
-    if (char === ' ') {
-      indent++
-      continue
-    }
-    if (char === '\t') {
-      indent += 4
-      continue
-    }
-    break
-  }
-  return indent
-}
-
-function collectInlineCodeRanges(
-  markdown: string,
-  blockRanges: SourceRange[],
-): SourceRange[] {
-  const ranges: SourceRange[] = []
+function collectMarkdownImageTextFallbacks(
+  text: string,
+  offset: number,
+): ImageReference[] {
+  const references: ImageReference[] = []
   let index = 0
 
-  while (index < markdown.length) {
-    const start = markdown.indexOf('`', index)
-    if (start < 0) break
-    if (isIgnoredRange(start, start + 1, blockRanges)) {
-      index = start + 1
+  while (index < text.length) {
+    const localStart = text.indexOf('![', index)
+    if (localStart < 0) break
+
+    const altEnd = findClosingBracket(text, localStart + 2)
+    if (altEnd < 0 || text[altEnd + 1] !== '(') {
+      index = localStart + 2
       continue
     }
 
-    const ticks = countRun(markdown, start, '`')
-    let cursor = start + ticks
-    let end = -1
-    while (cursor < markdown.length) {
-      const next = markdown.indexOf('`', cursor)
-      if (next < 0) break
-      if (isIgnoredRange(next, next + 1, blockRanges)) {
-        cursor = next + 1
-        continue
-      }
-      const nextTicks = countRun(markdown, next, '`')
-      if (nextTicks === ticks) {
-        end = next + nextTicks
-        break
-      }
-      cursor = next + nextTicks
-    }
-
-    if (end < 0) {
-      index = start + ticks
+    const destination = parseMarkdownDestination(text, altEnd + 1)
+    if (!destination) {
+      index = localStart + 2
       continue
     }
-    ranges.push({ end, start })
-    index = end
+
+    const rawTarget = normalizeMarkdownDestination(destination.value)
+    if (!rawTarget) {
+      index = destination.end
+      continue
+    }
+
+    references.push({
+      alt: text.slice(localStart + 2, altEnd).replace(/\\]/g, ']').trim(),
+      end: offset + destination.end,
+      rawTarget,
+      start: offset + localStart,
+      type: 'markdown',
+    })
+    index = destination.end
   }
 
-  return ranges
+  return references
 }
 
 function findClosingBracket(markdown: string, start: number): number {
@@ -372,18 +263,23 @@ function parseMarkdownDestination(
   return null
 }
 
-function countRun(source: string, start: number, char: string): number {
-  let count = 0
-  while (source[start + count] === char) count++
-  return count
+function visitMarkdownAst(
+  node: MarkdownAstNode,
+  visitor: (node: MarkdownAstNode) => void,
+): void {
+  visitor(node)
+  for (const child of node.children ?? []) {
+    visitMarkdownAst(child, visitor)
+  }
 }
 
-function isIgnoredRange(
-  start: number,
-  end: number,
-  ranges: SourceRange[],
-): boolean {
-  return ranges.some((range) => start < range.end && end > range.start)
+function nodeRange(
+  node: MarkdownAstNode,
+): { start: number; end: number } | null {
+  const start = node.position?.start?.offset
+  const end = node.position?.end?.offset
+  if (typeof start !== 'number' || typeof end !== 'number') return null
+  return { end, start }
 }
 
 function normalizeMarkdownDestination(value: string): string {

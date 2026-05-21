@@ -81,4 +81,103 @@ describe('collectImageReferencesForTest', () => {
       ['kept.png'],
     )
   })
+
+  it('keeps images between stray backticks in separate paragraphs', () => {
+    const markdown = [
+      'first `literal',
+      '',
+      '![valid](img.png)',
+      '',
+      'later `literal',
+    ].join('\n')
+    const references = module.collectImageReferencesForTest(markdown)
+
+    assert.deepEqual(
+      references.map((reference) => reference.rawTarget),
+      ['img.png'],
+    )
+  })
+
+  it('ignores images inside blockquote fenced code blocks', () => {
+    const markdown = [
+      '> ~~~',
+      '> ![inside](ignored.png)',
+      '> ~~~',
+      '',
+      '![outside](kept.png)',
+    ].join('\n')
+    const references = module.collectImageReferencesForTest(markdown)
+
+    assert.deepEqual(
+      references.map((reference) => reference.rawTarget),
+      ['kept.png'],
+    )
+  })
+
+  it('ignores images inside list-item fenced code blocks', () => {
+    const markdown = [
+      '- item',
+      '  ```',
+      '  ![inside](ignored.png)',
+      '  ```',
+      '',
+      '![outside](kept.png)',
+    ].join('\n')
+    const references = module.collectImageReferencesForTest(markdown)
+
+    assert.deepEqual(
+      references.map((reference) => reference.rawTarget),
+      ['kept.png'],
+    )
+  })
+
+  it('keeps Markdown image destinations with parentheses', () => {
+    const references = module.collectImageReferencesForTest(
+      '![paren](assets/foo (1).png)',
+    )
+
+    assert.deepEqual(
+      references.map((reference) => reference.rawTarget),
+      ['assets/foo (1).png'],
+    )
+  })
+
+  it('collects wiki embeds in text but ignores them in code', () => {
+    const markdown = [
+      '![[visible.png|Visible]]',
+      '',
+      '`![[inline.png]]`',
+      '',
+      '```',
+      '![[fenced.png]]',
+      '```',
+    ].join('\n')
+    const references = module.collectImageReferencesForTest(markdown)
+
+    assert.deepEqual(
+      references.map((reference) => reference.rawTarget),
+      ['visible.png'],
+    )
+  })
+
+  it('uses source offsets for wiki embeds after decoded character references', () => {
+    const markdown = 'a &amp; ![[img.png]]'
+    const references = module.collectImageReferencesForTest(markdown)
+    const [reference] = references
+
+    assert.equal(reference.rawTarget, 'img.png')
+    assert.equal(markdown.slice(reference.start, reference.end), '![[img.png]]')
+  })
+
+  it('uses source offsets for fallback images after decoded character references', () => {
+    const markdown = 'a &amp; ![fallback](assets/foo (1).png)'
+    const references = module.collectImageReferencesForTest(markdown)
+    const [reference] = references
+
+    assert.equal(reference.rawTarget, 'assets/foo (1).png')
+    assert.equal(
+      markdown.slice(reference.start, reference.end),
+      '![fallback](assets/foo (1).png)',
+    )
+  })
 })
