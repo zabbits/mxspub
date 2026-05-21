@@ -1,0 +1,77 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.1.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate release version
+        run: |
+          node <<'JS'
+          const fs = require("fs");
+
+          const tag = process.env.GITHUB_REF_NAME;
+          const manifest = JSON.parse(fs.readFileSync("manifest.json", "utf8"));
+          const versions = JSON.parse(fs.readFileSync("versions.json", "utf8"));
+
+          if (tag !== manifest.version) {
+            throw new Error(`Release tag ${tag} must match manifest version ${manifest.version}.`);
+          }
+
+          if (versions[manifest.version] !== manifest.minAppVersion) {
+            throw new Error(
+              `versions.json must map ${manifest.version} to ${manifest.minAppVersion}.`,
+            );
+          }
+          JS
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+
+      - name: Package plugin
+        run: |
+          mkdir -p release/mxspub
+          cp main.js manifest.json styles.css release/mxspub/
+          cd release
+          zip -r mxspub-${GITHUB_REF_NAME}.zip mxspub
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            main.js \
+            manifest.json \
+            styles.css \
+            "release/mxspub-${GITHUB_REF_NAME}.zip" \
+            --title "$GITHUB_REF_NAME" \
+            --generate-notes \
+            --verify-tag
