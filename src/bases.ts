@@ -145,42 +145,6 @@ views:
     sort:
       - property: updated
         direction: DESC
-  - type: table
-    name: Published
-    filters:
-      and:
-        - publish == true
-    order:
-      - formula.local_file
-      - title
-      - type
-      - publish
-      - category
-      - topic
-      - slug
-      - updated
-      - published
-    sort:
-      - property: published
-        direction: DESC
-  - type: table
-    name: Unpublished
-    filters:
-      and:
-        - publish == false
-    order:
-      - formula.local_file
-      - title
-      - type
-      - publish
-      - category
-      - topic
-      - slug
-      - updated
-      - remoteId
-    sort:
-      - property: updated
-        direction: DESC
 `
 
 export async function ensurePublishedBaseFile(app: App): Promise<TFile> {

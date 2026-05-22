@@ -169,6 +169,14 @@
   width: 68px;
 }
 
+.mxspub-management-image-preview.is-missing {
+  align-items: center;
+  color: var(--text-muted);
+  display: flex;
+  font-size: var(--font-ui-smaller);
+  justify-content: center;
+}
+
 .mxspub-management-image-body {
   min-width: 0;
 }
@@ -325,32 +333,11 @@
   padding: 14px;
 }
 
-.mxspub-base-title {
-  align-self: center;
-  color: var(--mxspub-crossing-ink);
-  min-width: 160px;
-}
-
-.mxspub-base-title h3 {
-  color: var(--mxspub-crossing-ink);
-  font-size: calc(var(--font-ui-large) + 2px);
-  line-height: 1.2;
-  margin: 2px 0 0;
-}
-
-.mxspub-base-kicker {
-  color: var(--mxspub-crossing-muted);
-  font-size: var(--font-ui-smaller);
-  font-weight: var(--font-semibold);
-  letter-spacing: 0;
-  text-transform: uppercase;
-}
-
 .mxspub-base-stats {
   display: grid;
   flex: 1;
   gap: 10px;
-  grid-template-columns: repeat(6, minmax(82px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(82px, 1fr));
 }
 
 .mxspub-base-stat {
@@ -381,14 +368,6 @@
 
 .mxspub-base-stat.is-page {
   background: var(--mxspub-crossing-sky-soft);
-}
-
-.mxspub-base-stat.is-published {
-  background: #dff2d7;
-}
-
-.mxspub-base-stat.is-unpublished {
-  background: var(--mxspub-crossing-lilac-soft);
 }
 
 .mxspub-base-stat-icon {
@@ -689,11 +668,6 @@
 .mxspub-base-detail.is-time {
   background: var(--mxspub-crossing-gold-soft);
   border-left-color: var(--mxspub-crossing-gold);
-}
-
-.mxspub-base-detail.is-remote {
-  background: var(--mxspub-crossing-rose-soft);
-  border-left-color: var(--mxspub-crossing-rose);
 }
 
 .mxspub-base-tags {

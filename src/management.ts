@@ -119,21 +119,30 @@ export class MxspubManagementView extends ItemView {
     row: ImageUploadCacheEntry,
   ): void {
     const card = container.createDiv({ cls: 'mxspub-management-image-card' })
+    const sourceFile = this.getSourceFile(row.sourcePath)
+    const displayPath = row.sourcePath || row.name
     const media = card.createEl('button', {
       cls: 'mxspub-management-image-media',
-      attr: { 'aria-label': `Open ${row.sourcePath || row.name}` },
+      attr: { 'aria-label': `Open ${displayPath}` },
     })
     media.addEventListener('click', () => {
       this.openSourceFile(row.sourcePath)
     })
-    media.createEl('img', {
-      attr: { alt: row.name, src: row.url },
-      cls: 'mxspub-management-image-preview',
-    })
+    if (sourceFile) {
+      media.createEl('img', {
+        attr: { alt: row.name, src: this.app.vault.getResourcePath(sourceFile) },
+        cls: 'mxspub-management-image-preview',
+      })
+    } else {
+      media.createDiv({
+        cls: 'mxspub-management-image-preview is-missing',
+        text: 'Missing',
+      })
+    }
     const body = card.createDiv({ cls: 'mxspub-management-image-body' })
     body.createEl('strong', {
       cls: 'mxspub-management-image-title',
-      text: row.sourcePath || row.name || row.url,
+      text: displayPath,
     })
     const details = body.createDiv({ cls: 'mxspub-management-image-details' })
     this.renderImageUrl(details, row.url)
@@ -173,9 +182,14 @@ export class MxspubManagementView extends ItemView {
   }
 
   private openSourceFile(sourcePath: string): void {
-    const file = this.app.vault.getAbstractFileByPath(sourcePath)
+    const file = this.getSourceFile(sourcePath)
     if (!(file instanceof TFile)) return
     void this.app.workspace.getLeaf('tab').openFile(file)
+  }
+
+  private getSourceFile(sourcePath: string): TFile | null {
+    const file = this.app.vault.getAbstractFileByPath(sourcePath)
+    return file instanceof TFile ? file : null
   }
 
   private async renderPublished(container: HTMLElement): Promise<void> {

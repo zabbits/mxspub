@@ -88,10 +88,6 @@ class MxspubPublishedBaseView extends BasesView {
 
   private renderHeader(entries: PublishedEntry[]): void {
     const header = this.containerEl.createDiv({ cls: 'mxspub-base-header' })
-    const title = header.createDiv({ cls: 'mxspub-base-title' })
-    title.createEl('span', { cls: 'mxspub-base-kicker', text: 'Mxspub' })
-    title.createEl('h3', { text: 'Published content' })
-
     const stats = header.createDiv({ cls: 'mxspub-base-stats' })
     this.renderStat(stats, 'Total', entries.length, 'layers', 'total')
     this.renderStat(
@@ -114,21 +110,6 @@ class MxspubPublishedBaseView extends BasesView {
       entries.filter((entry) => entry.type === 'page').length,
       'file-text',
       'page',
-    )
-    this.renderStat(
-      stats,
-      'Published',
-      entries.filter((entry) => entry.state === 'publish' || entry.state === 'page')
-        .length,
-      'send',
-      'published',
-    )
-    this.renderStat(
-      stats,
-      'Unpublished',
-      entries.filter((entry) => entry.state === 'unpublished').length,
-      'pencil',
-      'unpublished',
     )
   }
 
@@ -197,7 +178,6 @@ class MxspubPublishedBaseView extends BasesView {
     this.renderTags(details, item.tags)
     this.renderDetail(details, 'Created', item.created, 'created')
     this.renderDetail(details, 'Updated', item.updated, 'time')
-    this.renderDetail(details, 'Remote', shortId(item.id), 'remote')
   }
 
   private renderFileDetail(container: HTMLElement, item: PublishedEntry): void {
@@ -284,10 +264,6 @@ function valueOf(entry: BasesEntry, propertyId: BasesPropertyId): string {
   if (!value || !value.isTruthy()) return ''
   const normalized = value.toString().trim()
   return normalized === 'null' ? '' : normalized
-}
-
-function shortId(value: string): string {
-  return value.length > 10 ? value.slice(-10) : value
 }
 
 function statusIcon(state: EntryState): string {
