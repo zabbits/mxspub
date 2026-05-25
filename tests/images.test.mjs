@@ -160,6 +160,23 @@ describe('collectImageReferencesForTest', () => {
     )
   })
 
+  it('collects Excalidraw wiki embeds', () => {
+    const markdown = [
+      '![[diagram.excalidraw]]',
+      '![[sketch.excalidraw.md|Sketch]]',
+      '`![[inline.excalidraw]]`',
+    ].join('\n')
+    const references = module.collectImageReferencesForTest(markdown)
+
+    assert.deepEqual(
+      references.map((reference) => [reference.rawTarget, reference.alt]),
+      [
+        ['diagram.excalidraw', 'diagram'],
+        ['sketch.excalidraw.md', 'Sketch'],
+      ],
+    )
+  })
+
   it('uses source offsets for wiki embeds after decoded character references', () => {
     const markdown = 'a &amp; ![[img.png]]'
     const references = module.collectImageReferencesForTest(markdown)
@@ -181,3 +198,186 @@ describe('collectImageReferencesForTest', () => {
     )
   })
 })
+
+describe('ImageUploadService Excalidraw support', () => {
+  after(() => {
+    delete globalThis.ExcalidrawAutomate
+  })
+
+  it('exports Excalidraw embeds to SVG and uploads them as images', async () => {
+    const excalidrawFile = fakeFile('Drawings/diagram.excalidraw.md')
+    const sourceFile = fakeFile('Posts/post.md')
+    const app = fakeApp([sourceFile, excalidrawFile])
+    const uploads = []
+    const settings = fakeSettings()
+    const service = new module.ImageUploadService(
+      app,
+      settings,
+      fakeApi(uploads),
+      async () => {},
+    )
+    globalThis.ExcalidrawAutomate = {
+      createSVG: async (...args) => {
+        assert.deepEqual(args, [
+          'Drawings/diagram.excalidraw.md',
+          false,
+          { withBackground: false },
+          undefined,
+          'light',
+          10,
+          false,
+          false,
+        ])
+        return '<svg xmlns="http://www.w3.org/2000/svg"><rect /></svg>'
+      },
+      isExcalidrawFile: (file) => file.path.endsWith('.excalidraw.md'),
+      reset: () => {},
+    }
+
+    const context = fakeContext('before ![[diagram.excalidraw.md|Diagram]] after')
+    const prepared = await service.prepareContext(context, sourceFile)
+
+    assert.equal(
+      prepared.body,
+      'before ![Diagram](https://img.example/diagram.svg) after',
+    )
+    assert.equal(uploads.length, 1)
+    assert.equal(uploads[0].contentType, 'image/svg+xml')
+    assert.equal(uploads[0].filename, 'diagram.svg')
+  })
+
+  it('reuses cached exported SVG uploads', async () => {
+    const excalidrawFile = fakeFile('diagram.excalidraw')
+    const sourceFile = fakeFile('post.md')
+    const app = fakeApp([sourceFile, excalidrawFile])
+    const uploads = []
+    const settings = fakeSettings()
+    const service = new module.ImageUploadService(
+      app,
+      settings,
+      fakeApi(uploads),
+      async () => {},
+    )
+    globalThis.ExcalidrawAutomate = {
+      createSVG: async () => '<svg xmlns="http://www.w3.org/2000/svg" />',
+      isExcalidrawFile: () => true,
+    }
+
+    await service.prepareContext(fakeContext('![[diagram.excalidraw]]'), sourceFile)
+    const prepared = await service.prepareContext(
+      fakeContext('again ![[diagram.excalidraw]]'),
+      sourceFile,
+    )
+
+    assert.equal(uploads.length, 1)
+    assert.equal(prepared.body, 'again ![diagram](https://img.example/diagram.svg)')
+  })
+
+  it('fails before upload when ExcalidrawAutomate is unavailable', async () => {
+    const excalidrawFile = fakeFile('diagram.excalidraw')
+    const sourceFile = fakeFile('post.md')
+    const app = fakeApp([sourceFile, excalidrawFile])
+    const uploads = []
+    const service = new module.ImageUploadService(
+      app,
+      fakeSettings(),
+      fakeApi(uploads),
+      async () => {},
+    )
+    delete globalThis.ExcalidrawAutomate
+
+    await assert.rejects(
+      () => service.prepareContext(fakeContext('![[diagram.excalidraw]]'), sourceFile),
+      /Enable or update the Excalidraw plugin/,
+    )
+    assert.equal(uploads.length, 0)
+  })
+
+  it('leaves Excalidraw embeds unchanged when export is disabled', async () => {
+    const excalidrawFile = fakeFile('diagram.excalidraw')
+    const sourceFile = fakeFile('post.md')
+    const app = fakeApp([sourceFile, excalidrawFile])
+    const uploads = []
+    const settings = {
+      ...fakeSettings(),
+      exportExcalidrawAsSvg: false,
+    }
+    const service = new module.ImageUploadService(
+      app,
+      settings,
+      fakeApi(uploads),
+      async () => {},
+    )
+    delete globalThis.ExcalidrawAutomate
+
+    const prepared = await service.prepareContext(
+      fakeContext('keep ![[diagram.excalidraw]]'),
+      sourceFile,
+    )
+
+    assert.equal(prepared.body, 'keep ![[diagram.excalidraw]]')
+    assert.equal(uploads.length, 0)
+  })
+})
+
+function fakeFile(filePath) {
+  const name = path.basename(filePath)
+  const extension = name.includes('.') ? name.split('.').pop() : ''
+  return {
+    basename: name.replace(/\.[^.]+$/, ''),
+    extension,
+    name,
+    parent: { path: path.dirname(filePath) === '.' ? '' : path.dirname(filePath) },
+    path: filePath,
+  }
+}
+
+function fakeApp(files) {
+  const byPath = new Map(files.map((file) => [file.path, file]))
+  const byName = new Map(files.map((file) => [file.name, file]))
+  return {
+    metadataCache: {
+      getFirstLinkpathDest: (target) => byPath.get(target) ?? byName.get(target) ?? null,
+    },
+    vault: {
+      getFileByPath: (target) => byPath.get(target) ?? null,
+      readBinary: async (file) => new TextEncoder().encode(file.path).buffer,
+    },
+  }
+}
+
+function fakeApi(uploads) {
+  return {
+    uploadImage: async (upload) => {
+      uploads.push(upload)
+      return {
+        name: upload.filename,
+        url: `https://img.example/${upload.filename}`,
+      }
+    },
+  }
+}
+
+function fakeContext(body) {
+  return {
+    body,
+    fileBasename: 'post',
+    frontmatter: {},
+    mx: {},
+    publish: {},
+    title: 'post',
+  }
+}
+
+function fakeSettings() {
+  return {
+    apiBase: '',
+    apiKeySecretId: '',
+    apiUrl: '',
+    authBase: '',
+    defaultPostCategory: 'General',
+    defaultType: 'post',
+    exportExcalidrawAsSvg: true,
+    imageUploadCache: {},
+  }
+}

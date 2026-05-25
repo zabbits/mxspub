@@ -43,6 +43,8 @@ files, stdout/stderr output model, or error codes.
   `category`.
 - `apiBase` and `authBase`: probed endpoint bases cached after connection
   discovery.
+- `exportExcalidrawAsSvg`: enabled by default; exports Excalidraw embeds to SVG
+  images during publish.
 - `imageUploadCache`: SHA-256 image hash to uploaded mx-space URL cache.
 
 ## Frontmatter Contract
@@ -181,6 +183,10 @@ Content payloads:
 - All body content is sent as Markdown.
 - Local Obsidian image links are replaced with uploaded mx-space URLs in the
   outgoing payload only; the local Markdown file is not modified.
+- Local Excalidraw embeds (`*.excalidraw` and `*.excalidraw.md`) are exported
+  to light-theme transparent SVGs during publish via `ExcalidrawAutomate`, then
+  uploaded and replaced with ordinary Markdown image URLs in the outgoing
+  payload when `exportExcalidrawAsSvg` is enabled.
 - `contentFormat` is always `markdown`.
 - `text` is the Markdown body and remains the rendering/search source.
 - `content` is a valid Lexical editor-state JSON snapshot generated from the
@@ -241,6 +247,8 @@ Errors are optimized for Obsidian user feedback, not CLI error-code parity.
 - Publishing a page succeeds.
 - Publishing a file with `![[image.png]]` uploads the image and sends the
   mx-space image URL in the payload.
+- Publishing a file with `![[diagram.excalidraw.md]]` exports an SVG, uploads
+  it, and sends the mx-space SVG URL in the payload.
 - Publishing a file that references the same image twice uploads it once.
 - Publishing another file with the same image content reuses the cached URL.
 - Publishing with a missing local image fails without remote write.

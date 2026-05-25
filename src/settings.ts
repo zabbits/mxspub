@@ -110,6 +110,17 @@ export class MxSpacePublisherSettingTab extends PluginSettingTab {
           }),
       )
 
+    new Setting(containerEl)
+      .setName('Export Excalidraw embeds')
+      .setDesc('Export Excalidraw wiki embeds to SVG images during publish')
+      .addToggle((toggle) =>
+        toggle
+          .setValue(this.plugin.settings.exportExcalidrawAsSvg)
+          .onChange(async (value) => {
+            this.plugin.settings.exportExcalidrawAsSvg = value
+            await this.plugin.saveSettings()
+          }),
+      )
   }
 }
 

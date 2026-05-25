@@ -27,6 +27,7 @@ export interface MxSpacePublisherSettings {
   apiKeySecretId: string
   defaultType: ContentType
   defaultPostCategory: string
+  exportExcalidrawAsSvg: boolean
   imageUploadCache: ImageUploadCache
 }
 
@@ -37,6 +38,7 @@ export const DEFAULT_SETTINGS: MxSpacePublisherSettings = {
   apiKeySecretId: '',
   defaultType: 'post',
   defaultPostCategory: 'General',
+  exportExcalidrawAsSvg: true,
   imageUploadCache: {},
 }
 

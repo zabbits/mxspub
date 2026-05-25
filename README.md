@@ -70,11 +70,20 @@ embeds such as:
 ![Alt](assets/example.png)
 ![[example.png]]
 ![[assets/example.png|Alt]]
+![[diagram.excalidraw]]
+![[diagram.excalidraw.md|Diagram]]
 ```
 
 External `http` and `https` images are left unchanged. Uploaded images are
 cached by SHA-256 content hash so the same image is not uploaded again from the
 same vault.
+
+Excalidraw embeds are exported to light-theme transparent SVGs during publish
+using the Obsidian Excalidraw plugin's automation API. The generated SVG is
+uploaded to mx-space and the local note is not modified. Publishing an
+Excalidraw embed requires the Excalidraw plugin to be enabled. This behavior is
+enabled by default and can be disabled with the `Export Excalidraw embeds`
+setting.
 
 ## Management
 

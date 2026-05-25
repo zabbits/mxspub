@@ -19,6 +19,9 @@ const IMAGE_EXTENSIONS = new Set([
   'webp',
 ])
 
+const EXCALIDRAW_SVG_PADDING = 10
+const EXCALIDRAW_SVG_THEME = 'light'
+
 interface ImageReference {
   alt: string
   rawTarget: string
@@ -37,6 +40,19 @@ interface MarkdownAstNode {
   type: string
   url?: string
   value?: string
+}
+
+interface UploadableImage {
+  contentType: string
+  data: ArrayBuffer
+  filename: string
+  sourcePath: string
+}
+
+interface ExcalidrawAutomateApi {
+  createSVG?: (...args: unknown[]) => Promise<unknown> | unknown
+  isExcalidrawFile?: (file: TFile) => boolean
+  reset?: () => void
 }
 
 export class ImageUploadService {
@@ -60,20 +76,31 @@ export class ImageUploadService {
 
     for (const reference of references) {
       if (isExternalOrDataUrl(reference.rawTarget)) continue
+      if (
+        isExcalidrawTarget(reference.rawTarget) &&
+        !this.settings.exportExcalidrawAsSvg
+      ) {
+        continue
+      }
 
-      const imageFile = resolveImageFile(this.app, reference.rawTarget, file)
-      if (!imageFile) {
+      const mediaFile = resolvePublishableMediaFile(
+        this.app,
+        reference.rawTarget,
+        file,
+      )
+      if (!mediaFile) {
         throw new UserFacingError(
           `Cannot find image referenced by ${reference.rawTarget}.`,
         )
       }
 
-      const entry = await this.uploadImageFile(imageFile, uploadCache)
+      const uploadable = await this.prepareUploadableImage(mediaFile)
+      const entry = await this.uploadImage(uploadable, uploadCache)
       if (entry.changed) cacheChanged = true
       replacements.push({
         end: reference.end,
         start: reference.start,
-        value: markdownImage(reference.alt || imageFile.basename, entry.cache.url),
+        value: markdownImage(reference.alt || mediaFile.basename, entry.cache.url),
       })
     }
 
@@ -86,12 +113,65 @@ export class ImageUploadService {
     }
   }
 
-  private async uploadImageFile(
-    file: TFile,
+  private async prepareUploadableImage(file: TFile): Promise<UploadableImage> {
+    if (isImageFile(file)) {
+      return {
+        contentType: mimeTypeForFile(file),
+        data: await this.app.vault.readBinary(file),
+        filename: file.name,
+        sourcePath: file.path,
+      }
+    }
+
+    if (isExcalidrawFileCandidate(file)) {
+      return this.exportExcalidrawSvg(file)
+    }
+
+    throw new UserFacingError(`Unsupported image reference: ${file.path}.`)
+  }
+
+  private async exportExcalidrawSvg(file: TFile): Promise<UploadableImage> {
+    const automate = excalidrawAutomate()
+    if (!automate?.createSVG) {
+      throw new UserFacingError(
+        'Enable or update the Excalidraw plugin to publish Excalidraw embeds.',
+      )
+    }
+
+    if (automate.isExcalidrawFile && !automate.isExcalidrawFile(file)) {
+      throw new UserFacingError(`Cannot export Excalidraw file: ${file.path}.`)
+    }
+
+    try {
+      automate.reset?.()
+      const svg = await automate.createSVG(
+        file.path,
+        false,
+        { withBackground: false },
+        undefined,
+        EXCALIDRAW_SVG_THEME,
+        EXCALIDRAW_SVG_PADDING,
+        false,
+        false,
+      )
+      return {
+        contentType: 'image/svg+xml',
+        data: svgToArrayBuffer(svg),
+        filename: `${excalidrawBasename(file)}.svg`,
+        sourcePath: file.path,
+      }
+    } catch (error) {
+      throw new UserFacingError(
+        `Cannot export Excalidraw SVG for ${file.path}: ${errorMessage(error)}`,
+      )
+    }
+  }
+
+  private async uploadImage(
+    image: UploadableImage,
     publishCache: Map<string, ImageUploadCacheEntry>,
   ): Promise<{ cache: ImageUploadCacheEntry; changed: boolean }> {
-    const data = await this.app.vault.readBinary(file)
-    const hash = `sha256:${await sha256Hex(data)}`
+    const hash = `sha256:${await sha256Hex(image.data)}`
     const now = new Date().toISOString()
     const cached = publishCache.get(hash) ?? this.settings.imageUploadCache[hash]
 
@@ -99,7 +179,7 @@ export class ImageUploadService {
       const next: ImageUploadCacheEntry = {
         ...cached,
         lastUsedAt: now,
-        sourcePath: file.path,
+        sourcePath: image.sourcePath,
       }
       this.settings.imageUploadCache[hash] = next
       publishCache.set(hash, next)
@@ -112,15 +192,15 @@ export class ImageUploadService {
     }
 
     const response = await this.api.uploadImage({
-      contentType: mimeTypeForFile(file),
-      data,
-      filename: file.name,
+      contentType: image.contentType,
+      data: image.data,
+      filename: image.filename,
     })
     const entry: ImageUploadCacheEntry = {
-      byteSize: data.byteLength,
+      byteSize: image.data.byteLength,
       lastUsedAt: now,
       name: response.name,
-      sourcePath: file.path,
+      sourcePath: image.sourcePath,
       uploadedAt: now,
       url: response.url,
     }
@@ -299,7 +379,11 @@ function displayTextForWiki(display: string | undefined, target: string): string
   return display
 }
 
-function resolveImageFile(app: App, rawTarget: string, sourceFile: TFile): TFile | null {
+function resolvePublishableMediaFile(
+  app: App,
+  rawTarget: string,
+  sourceFile: TFile,
+): TFile | null {
   const target = stripSubpath(decodeTarget(rawTarget))
   const candidates = new Set<string>([target, rawTarget, stripSubpath(rawTarget)])
   const sourceDir = sourceFile.parent?.path ?? ''
@@ -310,9 +394,9 @@ function resolveImageFile(app: App, rawTarget: string, sourceFile: TFile): TFile
 
   for (const candidate of candidates) {
     const linked = app.metadataCache.getFirstLinkpathDest(candidate, sourceFile.path)
-    if (linked && isImageFile(linked)) return linked
+    if (linked && isPublishableMediaFile(linked)) return linked
     const direct = app.vault.getFileByPath(normalizePath(candidate))
-    if (direct && isImageFile(direct)) return direct
+    if (direct && isPublishableMediaFile(direct)) return direct
   }
 
   return null
@@ -333,6 +417,20 @@ function decodeTarget(value: string): string {
 
 function isImageFile(file: TFile): boolean {
   return IMAGE_EXTENSIONS.has(file.extension.toLowerCase())
+}
+
+function isPublishableMediaFile(file: TFile): boolean {
+  return isImageFile(file) || isExcalidrawFileCandidate(file)
+}
+
+function isExcalidrawFileCandidate(file: TFile): boolean {
+  const path = file.path.toLowerCase()
+  return file.extension.toLowerCase() === 'excalidraw' || path.endsWith('.excalidraw.md')
+}
+
+function isExcalidrawTarget(rawTarget: string): boolean {
+  const target = stripSubpath(decodeTarget(rawTarget)).toLowerCase()
+  return target.endsWith('.excalidraw') || target.endsWith('.excalidraw.md')
 }
 
 function isExternalOrDataUrl(value: string): boolean {
@@ -386,4 +484,35 @@ function mimeTypeForFile(file: TFile): string {
     default:
       return 'application/octet-stream'
   }
+}
+
+function excalidrawAutomate(): ExcalidrawAutomateApi | null {
+  const candidate = (globalThis as { ExcalidrawAutomate?: unknown })
+    .ExcalidrawAutomate
+  if (!candidate || typeof candidate !== 'object') return null
+  return candidate as ExcalidrawAutomateApi
+}
+
+function svgToArrayBuffer(svg: unknown): ArrayBuffer {
+  return new TextEncoder().encode(svgToString(svg)).buffer
+}
+
+function svgToString(svg: unknown): string {
+  if (typeof svg === 'string') return svg
+  if (svg && typeof svg === 'object') {
+    if (typeof XMLSerializer !== 'undefined') {
+      return new XMLSerializer().serializeToString(svg as Node)
+    }
+    const outerHTML = (svg as { outerHTML?: unknown }).outerHTML
+    if (typeof outerHTML === 'string') return outerHTML
+  }
+  throw new UserFacingError('Excalidraw SVG export returned invalid SVG.')
+}
+
+function excalidrawBasename(file: TFile): string {
+  return file.name.replace(/\.excalidraw(?:\.md)?$/i, '')
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
 }
