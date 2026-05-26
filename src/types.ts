@@ -74,6 +74,7 @@ export type RelationInput = string | RelationInputObject
 export interface MxPublishMetadata extends JsonObject {
   type?: ContentType
   id?: string
+  nid?: number
   slug?: string
   publish?: boolean
   published?: string

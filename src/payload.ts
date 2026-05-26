@@ -22,6 +22,7 @@ export interface RelationPayload {
 export interface PayloadInput<T extends ContentType = ContentType> {
   context: MarkdownFileContext<T>
   isPublished: boolean
+  relatedIds?: string[]
   type: T
   relations: RelationPayload
 }
@@ -71,6 +72,7 @@ function buildPostPayload(input: PayloadInput<'post'>): MxPostPayload {
     slug: base.slug ?? resolveSlug(input.context),
   }
   if (input.relations.tags?.length) payload.tags = input.relations.tags
+  if (input.relatedIds?.length) payload.relatedId = input.relatedIds
   if (input.context.publish.summary) payload.summary = input.context.publish.summary
   return payload
 }

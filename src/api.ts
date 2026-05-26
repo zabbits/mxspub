@@ -50,6 +50,10 @@ interface BatchDeleteResponse extends JsonObject {
   deletedCount?: number
 }
 
+interface PostUrlResponse extends JsonObject {
+  path?: string
+}
+
 export class MxSpaceApiClient {
   constructor(private options: ApiClientOptions) {}
 
@@ -132,6 +136,13 @@ export class MxSpaceApiClient {
     }
   }
 
+  async resolvePostPath(slug: string): Promise<string | null> {
+    const response = await this.request<PostUrlResponse>(
+      `/posts/get-url/${encodePathSegment(slug)}`,
+    ).catch(() => null)
+    return normalizePostPublicPath(response?.path)
+  }
+
   private async perform<T>(
     path: string,
     options: RequestOptions,
@@ -193,6 +204,10 @@ export function objectImageDeleteTargetForTest(
   apiBase: string,
 ): string | null {
   return objectImageDeleteTarget(imageUrl, apiBase)
+}
+
+export function normalizePostPublicPathForTest(path: string | undefined): string | null {
+  return normalizePostPublicPath(path)
 }
 
 export async function probeEndpoint(apiUrlInput: string): Promise<EndpointConfig> {
@@ -257,6 +272,14 @@ function objectImageDeleteTarget(imageUrl: string, apiBase: string): string | nu
   } catch {
     return match[1]
   }
+}
+
+function normalizePostPublicPath(path: string | undefined): string | null {
+  if (typeof path !== 'string') return null
+  const trimmed = path.trim()
+  if (!trimmed) return null
+  const normalized = trimmed.startsWith('/') ? trimmed : `/${trimmed}`
+  return normalized.startsWith('/posts/') ? normalized : `/posts${normalized}`
 }
 
 function encodePathSegment(value: string): string {

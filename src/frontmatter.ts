@@ -38,6 +38,7 @@ const FRONTMATTER_FIELD_ORDER = [
   'type',
   'publish',
   'remoteId',
+  'nid',
   'published',
 ]
 
@@ -155,6 +156,7 @@ function parseFrontmatter(source: string): YamlObject {
 function normalizeMxPublishMetadata(value: YamlObject): MxPublishMetadata {
   return {
     id: stringValue(value.remoteId),
+    nid: numberValue(value.nid),
     publish: booleanValue(value.publish),
     published: stringValue(value.published),
     slug: stringValue(value.slug),
@@ -265,6 +267,7 @@ function applyMxPublishPatch(
   const rootPatch: YamlObject = {}
   if ('published' in patch) rootPatch.published = patch.published
   if ('id' in patch) rootPatch.remoteId = patch.id
+  if ('nid' in patch) rootPatch.nid = patch.nid
   if ('publish' in patch) rootPatch.publish = patch.publish
   if ('type' in patch) rootPatch.type = patch.type
   if ('slug' in patch) rootPatch.slug = patch.slug

@@ -91,6 +91,73 @@ describe('objectImageDeleteTargetForTest', () => {
   })
 })
 
+describe('normalizePostPublicPathForTest', () => {
+  it('adds the frontend post route prefix to mx-core slug resolver paths', () => {
+    assert.equal(
+      module.normalizePostPublicPathForTest('/misc/foo'),
+      '/posts/misc/foo',
+    )
+    assert.equal(
+      module.normalizePostPublicPathForTest('misc/foo'),
+      '/posts/misc/foo',
+    )
+  })
+
+  it('does not duplicate existing post route prefixes', () => {
+    assert.equal(
+      module.normalizePostPublicPathForTest('/posts/misc/foo'),
+      '/posts/misc/foo',
+    )
+  })
+
+  it('returns null for invalid post paths', () => {
+    assert.equal(module.normalizePostPublicPathForTest(undefined), null)
+    assert.equal(module.normalizePostPublicPathForTest(''), null)
+  })
+})
+
+describe('MxSpaceApiClient.resolvePostPath', () => {
+  it('normalizes post paths returned by mx-space', async () => {
+    globalThis.__mxspubRequestUrl = async (request) => {
+      globalThis.__mxspubRequests.push(request)
+      return { status: 200, text: '{"path":"/misc/foo"}' }
+    }
+    const client = new module.MxSpaceApiClient({
+      apiBase: 'https://blog.example.com/api/v2',
+    })
+
+    assert.equal(await client.resolvePostPath('foo'), '/posts/misc/foo')
+    assert.equal(
+      globalThis.__mxspubRequests[0].url,
+      'https://blog.example.com/api/v2/posts/get-url/foo',
+    )
+  })
+
+  it('keeps already-prefixed post paths', async () => {
+    globalThis.__mxspubRequestUrl = async (request) => {
+      globalThis.__mxspubRequests.push(request)
+      return { status: 200, text: '{"path":"/posts/misc/foo"}' }
+    }
+    const client = new module.MxSpaceApiClient({
+      apiBase: 'https://blog.example.com/api/v2',
+    })
+
+    assert.equal(await client.resolvePostPath('foo'), '/posts/misc/foo')
+  })
+
+  it('returns null when mx-space cannot resolve the post path', async () => {
+    globalThis.__mxspubRequestUrl = async (request) => {
+      globalThis.__mxspubRequests.push(request)
+      return { status: 404, text: '{"message":"not found"}' }
+    }
+    const client = new module.MxSpaceApiClient({
+      apiBase: 'https://blog.example.com/api/v2',
+    })
+
+    assert.equal(await client.resolvePostPath('foo'), null)
+  })
+})
+
 describe('MxSpaceApiClient.deleteImage', () => {
   it('deletes local mx-space object images directly', async () => {
     const client = new module.MxSpaceApiClient({

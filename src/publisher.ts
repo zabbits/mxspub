@@ -13,6 +13,7 @@ import {
 } from './frontmatter'
 import { confirmAction, pickContentType } from './modals'
 import { ImageUploadService } from './images'
+import { InternalLinkService } from './links'
 import { buildPayload, resolveSlug } from './payload'
 import { RelationService } from './relations'
 import type {
@@ -68,6 +69,11 @@ export class Publisher {
         this.saveSettings,
       )
       context = await imageUploadService.prepareContext(context, file)
+      const internalLinks = await new InternalLinkService(
+        this.app,
+        api,
+      ).prepareContext(context, file)
+      context = internalLinks.context
       const relationService = new RelationService(api, this.settings)
       if (type === 'post') {
         const typedContext = withMxType(context, 'post')
@@ -80,6 +86,7 @@ export class Publisher {
           payload: buildPayload({
             context: typedContext,
             isPublished: true,
+            relatedIds: internalLinks.relatedIds,
             relations,
             type: 'post',
           }),
@@ -235,6 +242,7 @@ export class Publisher {
     await updatePublishFrontmatter(this.app, file, {
       mx: {
         id,
+        nid: type === 'note' ? documentNid(document) : undefined,
         published: context.mx.published ?? now,
         publish: type === 'page' ? undefined : isPublished,
         slug,
@@ -328,6 +336,13 @@ function documentSlug(
   return typeof document.slug === 'string' && document.slug.trim()
     ? document.slug
     : undefined
+}
+
+function documentNid(
+  document: MxPost | MxNote | MxPage | null | undefined,
+): number | undefined {
+  if (!document || typeof document.nid !== 'number') return
+  return document.nid
 }
 
 function typeLabel(type: ContentType): string {
