@@ -89,7 +89,10 @@ setting.
 
 Use `Mxspub: Open management` to inspect plugin state:
 
-- `Images`: cached uploaded images, source path, size, last-used time, and URL.
+- `Images`: cached uploaded images, source path, size, last-used time, URL, and
+  per-image deletion. Deleting an image removes the remote mx-space object and
+  local cache entry, but keeps the local source file. Excalidraw entries preview
+  the uploaded SVG.
 - `Published`: directly opens the generated Obsidian Base at
   `Mxspub/mxspub-published.base`. The Base defaults to a custom Mxspub view
   grouped by posts, notes, and pages, with native table fallback views.

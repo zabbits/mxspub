@@ -169,6 +169,10 @@
   width: 68px;
 }
 
+.mxspub-management-image-preview.is-excalidraw {
+  object-fit: contain;
+}
+
 .mxspub-management-image-preview.is-missing {
   align-items: center;
   color: var(--text-muted);
@@ -181,15 +185,55 @@
   min-width: 0;
 }
 
+.mxspub-management-image-card-header {
+  align-items: center;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) 32px;
+  margin-bottom: 9px;
+  min-width: 0;
+}
+
 .mxspub-management-image-title {
   color: var(--mxspub-crossing-ink);
   display: block;
   font-size: calc(var(--font-ui-medium) + 2px);
   line-height: 1.25;
-  margin-bottom: 9px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.mxspub-management-image-delete {
+  align-items: center;
+  background: var(--mxspub-crossing-rose-soft);
+  border: 1px solid var(--mxspub-crossing-rose);
+  border-radius: 8px;
+  box-shadow: inset 0 -2px 0 rgba(99, 78, 42, 0.1);
+  color: #8f3f47;
+  display: inline-flex;
+  height: 32px;
+  justify-content: center;
+  padding: 0;
+  width: 32px;
+}
+
+.mxspub-management-image-delete:hover {
+  background: var(--mxspub-crossing-rose);
+  border-color: #c66c75;
+  color: var(--mxspub-crossing-ink);
+}
+
+.mxspub-management-image-delete:disabled {
+  background: var(--background-modifier-border);
+  border-color: var(--background-modifier-border);
+  box-shadow: none;
+  color: var(--text-muted);
+}
+
+.mxspub-management-image-delete svg {
+  height: 15px;
+  width: 15px;
 }
 
 .mxspub-management-image-details {

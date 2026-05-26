@@ -41,7 +41,14 @@ export default class MxSpacePublisherPlugin extends Plugin {
 
     this.registerView(
       MXSPUB_MANAGEMENT_VIEW,
-      (leaf) => new MxspubManagementView(leaf, this.settings),
+      (leaf) =>
+        new MxspubManagementView(
+          leaf,
+          this.settings,
+          this.auth,
+          () => this.ensureEndpointConfigured(),
+          () => this.saveSettings(),
+        ),
     )
     this.registerBasesView(
       MXSPUB_BASE_VIEW_TYPE,

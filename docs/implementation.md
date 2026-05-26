@@ -46,6 +46,8 @@ files, stdout/stderr output model, or error codes.
 - `exportExcalidrawAsSvg`: enabled by default; exports Excalidraw embeds to SVG
   images during publish.
 - `imageUploadCache`: SHA-256 image hash to uploaded mx-space URL cache.
+  Management deletes remove the remote mx-space image and the cache entry, but
+  never delete the local source file.
 
 ## Frontmatter Contract
 
@@ -169,6 +171,9 @@ Content:
 - Page create: `POST /pages`
 - Page update: `PATCH /pages/:id`
 - Page delete: `DELETE /pages/:id`
+- Object image delete: `DELETE /objects/image/:name`
+- Orphan image delete fallback: `GET /objects/orphans/list`, then
+  `DELETE /objects/orphans/batch` with `{ ids: string[] }`
 
 Relations:
 
@@ -187,6 +192,8 @@ Content payloads:
   to light-theme transparent SVGs during publish via `ExcalidrawAutomate`, then
   uploaded and replaced with ordinary Markdown image URLs in the outgoing
   payload when `exportExcalidrawAsSvg` is enabled.
+- The Images management view previews Excalidraw cache entries from the
+  uploaded SVG URL rather than the local Excalidraw source file.
 - `contentFormat` is always `markdown`.
 - `text` is the Markdown body and remains the rendering/search source.
 - `content` is a valid Lexical editor-state JSON snapshot generated from the

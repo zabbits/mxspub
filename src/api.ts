@@ -42,6 +42,14 @@ export interface RequestOptions {
   headers?: Record<string, string>
 }
 
+interface OrphanListResponse extends JsonObject {
+  data?: JsonValue[]
+}
+
+interface BatchDeleteResponse extends JsonObject {
+  deletedCount?: number
+}
+
 export class MxSpaceApiClient {
   constructor(private options: ApiClientOptions) {}
 
@@ -99,6 +107,31 @@ export class MxSpaceApiClient {
     })
   }
 
+  async deleteImage(file: { name: string; url: string }): Promise<void> {
+    const target = objectImageDeleteTarget(file.url, this.options.apiBase)
+    if (target) {
+      await this.request<void>(`/objects/image/${encodePathSegment(target)}`, {
+        method: 'DELETE',
+      })
+      return
+    }
+
+    const orphanId = await this.findOrphanIdByUrl(file.url)
+    if (!orphanId) {
+      throw new UserFacingError(
+        'Cannot find a mx-space object record for this image.',
+      )
+    }
+
+    const response = await this.request<BatchDeleteResponse>('/objects/orphans/batch', {
+      body: { ids: [orphanId] },
+      method: 'DELETE',
+    })
+    if (typeof response.deletedCount === 'number' && response.deletedCount < 1) {
+      throw new UserFacingError('mx-space did not delete the remote image.')
+    }
+  }
+
   private async perform<T>(
     path: string,
     options: RequestOptions,
@@ -141,6 +174,25 @@ export class MxSpaceApiClient {
       status: response.status,
     })
   }
+
+  private async findOrphanIdByUrl(url: string): Promise<string | null> {
+    const response = await this.request<OrphanListResponse>('/objects/orphans/list', {
+      query: { page: 1, size: 500 },
+    })
+    const rows = Array.isArray(response.data) ? response.data : []
+    for (const row of rows) {
+      if (!isJsonObject(row)) continue
+      if (row.fileUrl === url && typeof row.id === 'string') return row.id
+    }
+    return null
+  }
+}
+
+export function objectImageDeleteTargetForTest(
+  imageUrl: string,
+  apiBase: string,
+): string | null {
+  return objectImageDeleteTarget(imageUrl, apiBase)
 }
 
 export async function probeEndpoint(apiUrlInput: string): Promise<EndpointConfig> {
@@ -185,6 +237,30 @@ function buildUrl(
   }
 
   return url.toString()
+}
+
+function objectImageDeleteTarget(imageUrl: string, apiBase: string): string | null {
+  let url: URL
+  let base: URL
+  try {
+    url = new URL(imageUrl)
+    base = new URL(apiBase)
+  } catch {
+    return null
+  }
+
+  if (url.origin !== base.origin) return null
+  const match = url.pathname.match(/\/objects\/image\/(.+)$/)
+  if (!match?.[1]) return null
+  try {
+    return decodeURIComponent(match[1])
+  } catch {
+    return match[1]
+  }
+}
+
+function encodePathSegment(value: string): string {
+  return encodeURIComponent(value)
 }
 
 function parseResponseBody(response: RequestUrlResponse): ApiResponseBody {
